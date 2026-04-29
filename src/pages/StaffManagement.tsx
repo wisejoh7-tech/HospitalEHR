@@ -48,12 +48,18 @@ export default function StaffManagement() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiService.registerStaff(newStaff);
+      // Clean phone number
+      const cleanedStaff = {
+        ...newStaff,
+        phone: newStaff.phone.replace(/\s+/g, '').replace(/-/g, '')
+      };
+      await apiService.registerStaff(cleanedStaff);
       setShowAddModal(false);
-      setNewStaff({ name: '', phone: '', password: '', role: 'doctor' as UserRole });
+      setNewStaff({ name: '', phone: '', password: '', role: (profile?.role === 'pharmacy_admin' ? 'pharmacy' : 'doctor') as UserRole });
       fetchStaff();
     } catch (err) {
       console.error(err);
+      alert('Failed to register staff');
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/apiService';
-import { Patient, ClinicalNote, Prescription, NoteType, Investigation, VitalSign, Ward, Bed } from '../types';
+import { Patient, ClinicalNote, Prescription, NoteType, Investigation, VitalSign, Ward, Bed, Appointment } from '../types';
 import { 
   ArrowLeft, 
   ShieldAlert, 
@@ -27,7 +27,8 @@ import {
   Thermometer,
   Wind,
   Search,
-  ChevronDown
+  ChevronDown,
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -47,7 +48,8 @@ export default function PatientDetails() {
   const [bills, setBills] = useState<any[]>([]);
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'notes' | 'prescriptions' | 'labs' | 'radiology' | 'vitals' | 'treatment' | 'billing'>('notes');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [activeTab, setActiveTab] = useState<'notes' | 'prescriptions' | 'labs' | 'radiology' | 'vitals' | 'treatment' | 'billing' | 'appointments'>('notes');
   const [noteContent, setNoteContent] = useState('');
   const [noteType, setNoteType] = useState<NoteType>('physician');
   const [loading, setLoading] = useState(true);
@@ -170,12 +172,14 @@ export default function PatientDetails() {
         setTreatmentPlans(data.treatmentPlans || []);
         setReviews(data.reviews || []);
 
-        const [wardsList, invList] = await Promise.all([
+        const [wardsList, invList, appsList] = await Promise.all([
           apiService.getWards(),
-          (profile?.role === 'doctor' || profile?.role === 'admin') ? apiService.getInventory() : Promise.resolve([])
+          (profile?.role === 'doctor' || profile?.role === 'admin') ? apiService.getInventory() : Promise.resolve([]),
+          apiService.getAppointments({ patientId: id })
         ]);
         setWards(wardsList);
         setInventory(invList);
+        setAppointments(appsList);
 
         if (data.nextVisit) {
           setNextAppointment(new Date(data.nextVisit).toISOString().split('T')[0]);
@@ -232,6 +236,13 @@ export default function PatientDetails() {
       setInvestigations(prev => [newInv, ...prev]);
       setInvTestName('');
       setShowInvModal(false);
+
+      // Auto-move to lab/radiology after ordering
+      if (patient?.workflowStatus === 'consultation') {
+        const nextStatus = invType === 'radiology' ? 'radiology' : 'laboratory';
+        const updated = await apiService.updatePatientWorkflowStatus(id, nextStatus);
+        setPatient(updated);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -252,11 +263,18 @@ export default function PatientDetails() {
     try {
       const newRx = await apiService.addPrescription(id, {
         ...rxForm,
-        authorId: profile.uid
+        authorId: profile.uid,
+        authorName: profile.name
       });
       setPrescriptions(prev => [newRx, ...prev]);
       setShowRxModal(false);
       setRxForm({ medication: '', dosage: '', frequency: '', duration: '' });
+
+      // Auto-move to pharmacy stage
+      if (patient?.workflowStatus === 'consultation') {
+        const updated = await apiService.updatePatientWorkflowStatus(id, 'pharmacy');
+        setPatient(updated);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -287,6 +305,12 @@ export default function PatientDetails() {
       setVitals(prev => [newVitals, ...prev]);
       setShowVitalsModal(false);
       setVitalsForm({ bp: '', pulse: '', temp: '', resp: '', spo2: '', weight: '' });
+
+      // Auto-move to consultation after vitals
+      if (patient?.workflowStatus === 'vitals') {
+        const updated = await apiService.updatePatientWorkflowStatus(id, 'consultation');
+        setPatient(updated);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -296,8 +320,21 @@ export default function PatientDetails() {
     if (!id || !nextAppointment) return;
     setIsUpdatingAppointment(true);
     try {
-      const updated = await apiService.updatePatient(id, { nextVisit: nextAppointment });
+      await Promise.all([
+        apiService.updatePatient(id, { nextVisit: nextAppointment }),
+        apiService.createAppointment({
+          patientId: id,
+          doctorId: profile?.uid,
+          doctorName: profile?.name,
+          dateTime: `${nextAppointment}T09:00:00`,
+          reason: 'Return Consultation (Scheduled from Details)',
+          type: 'consultation',
+          status: 'scheduled'
+        })
+      ]);
+      const updated = await apiService.getPatientById(id);
       setPatient(updated);
+      setAppointments(await apiService.getAppointments({ patientId: id }));
       setShowAppointmentModal(false);
     } catch (err) {
       console.error(err);
@@ -437,6 +474,33 @@ export default function PatientDetails() {
           )}
 
           {isClinical && (
+            <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
+               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3">Workflow Status:</span>
+               <select 
+                 value={patient.workflowStatus}
+                 onChange={async (e) => {
+                   try {
+                     const updated = await apiService.updatePatientWorkflowStatus(id!, e.target.value as any);
+                     setPatient(prev => prev ? { ...prev, workflowStatus: updated.workflowStatus } : null);
+                   } catch (err) {
+                     alert("Failed to update status");
+                   }
+                 }}
+                 className="px-4 py-2 bg-white border border-gray-100 rounded-lg text-xs font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-100"
+               >
+                 <option value="registered">Registered</option>
+                 <option value="vitals">Nursing (Vitals)</option>
+                 <option value="consultation">Doctor (Consultation)</option>
+                 <option value="laboratory">Laboratory</option>
+                 <option value="radiology">Radiology</option>
+                 <option value="treatment">Nursing (Treatment)</option>
+                 <option value="pharmacy">Pharmacy</option>
+                 <option value="discharged">Completed</option>
+               </select>
+            </div>
+          )}
+
+          {isClinical && (
             patient.status === 'inpatient' ? (
               <button 
                 onClick={() => setShowDischargeModal(true)}
@@ -445,15 +509,17 @@ export default function PatientDetails() {
                 <LogOut size={16} /> Discharge Patient
               </button>
             ) : (
-              <button 
-                onClick={() => {
-                  fetchWards();
-                  setShowAdmitModal(true);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-blue-600 text-white shadow-lg shadow-blue-100 hover:scale-105 transition-all"
-              >
-                <BedDouble size={16} /> Admit Patient
-              </button>
+              !['registered', 'vitals'].includes(patient.workflowStatus) && (
+                <button 
+                  onClick={() => {
+                    fetchWards();
+                    setShowAdmitModal(true);
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-blue-600 text-white shadow-lg shadow-blue-100 hover:scale-105 transition-all"
+                >
+                  <BedDouble size={16} /> Admit Patient
+                </button>
+              )
             )
           )}
 
@@ -635,6 +701,7 @@ export default function PatientDetails() {
                 { id: 'labs', label: 'Labs', icon: Activity },
                 { id: 'radiology', label: 'Radiology', icon: FileSearch },
                 { id: 'billing', label: 'Billing', icon: ClipboardCheck },
+                { id: 'appointments', label: 'Appointments', icon: CalendarDays },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -741,38 +808,57 @@ export default function PatientDetails() {
                   <motion.div layout className="space-y-4">
                     <div className="flex justify-between items-center mb-4">
                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Active Pharmacotherapy</h3>
-                       <button 
-                         onClick={() => setShowRxModal(true)}
-                         className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
-                       >
-                         <PlusCircle size={14} /> New Prescription
-                       </button>
+                       {isDoctor && (
+                         <button 
+                           onClick={() => setShowRxModal(true)}
+                           className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
+                         >
+                           <PlusCircle size={14} /> New Prescription
+                         </button>
+                       )}
                     </div>
                     {prescriptions.map(rx => (
-                      <div key={rx.id} className="p-4 border border-gray-100 rounded-2xl flex items-center justify-between hover:bg-gray-50 transition-all">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                              <Pill size={20} />
+                      <div key={rx.id} className="p-5 border border-gray-100 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 hover:bg-gray-50 transition-all group">
+                        <div className="flex items-center gap-4 w-full">
+                           <div className={cn(
+                             "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                             rx.status === 'active' ? "bg-orange-50 text-orange-600" :
+                             rx.status === 'dispensed' ? "bg-blue-50 text-blue-600" :
+                             rx.status === 'discontinued' ? "bg-red-50 text-red-600" :
+                             "bg-emerald-50 text-emerald-600"
+                           )}>
+                              <Pill size={24} />
                            </div>
-                           <div>
-                              <p className="font-black text-gray-900">{rx.medication}</p>
-                              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{rx.dosage} • {rx.frequency} • {rx.duration}</p>
+                           <div className="flex-1 min-w-0">
+                              <p className="font-black text-gray-900 text-lg uppercase tracking-tight">{rx.medication}</p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{rx.dosage} • {rx.frequency} • {rx.duration}</p>
+                                <span className="w-1 h-1 rounded-full bg-gray-200 hidden sm:block" />
+                                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Dr. {rx.authorName}</p>
+                              </div>
                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                           <select 
-                             value={rx.status}
-                             onChange={(e) => handleUpdateRxStatus(rx.id, e.target.value)}
-                             className={cn(
-                               "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm outline-none cursor-pointer",
-                               rx.status === 'active' ? "bg-green-100 text-green-700" : 
-                               rx.status === 'completed' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
-                             )}
-                           >
-                             <option value="active">Active</option>
-                             <option value="completed">Completed</option>
-                             <option value="discontinued">Discontinued</option>
-                           </select>
+                        <div className="flex items-center gap-4 w-full sm:w-auto shrink-0">
+                           <div className="flex flex-col items-end gap-1">
+                              <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest pr-1">Prescription Status</span>
+                              <select 
+                                value={rx.status}
+                                onChange={(e) => handleUpdateRxStatus(rx.id, e.target.value)}
+                                className={cn(
+                                  "pl-3 pr-8 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm outline-none cursor-pointer border appearance-none transition-all",
+                                  rx.status === 'active' ? "bg-amber-50 border-amber-100 text-amber-600" : 
+                                  rx.status === 'dispensed' ? "bg-blue-50 border-blue-100 text-blue-600" : 
+                                  rx.status === 'discontinued' ? "bg-red-50 border-red-100 text-red-600" :
+                                  "bg-emerald-50 border-emerald-100 text-emerald-600"
+                                )}
+                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat' }}
+                              >
+                                <option value="active">Active</option>
+                                <option value="dispensed">Dispensed</option>
+                                <option value="completed">Completed</option>
+                                <option value="discontinued">Discontinued</option>
+                              </select>
+                           </div>
                         </div>
                       </div>
                     ))}
@@ -781,40 +867,72 @@ export default function PatientDetails() {
                 )}
 
                 {activeTab === 'vitals' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                    <div className="flex items-center justify-between mb-2">
-                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Observation History</h3>
-                       <Activity size={16} className="text-gray-400" />
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    <div className="flex items-center justify-between">
+                       <div>
+                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Clinical Observations</h3>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Physiological Parameter History</p>
+                       </div>
+                       <button 
+                         onClick={() => setShowVitalsModal(true)}
+                         className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-emerald-100 hover:scale-[1.02] transition-all"
+                       >
+                         <PlusCircle size={14} /> Record New Vitals
+                       </button>
                     </div>
-                    {vitals.length === 0 ? (
-                      <div className="p-8 text-center bg-gray-50 rounded-2xl">
-                         <Activity className="mx-auto text-gray-300 mb-2" size={32} />
-                         <p className="text-sm font-bold text-gray-400">No vitals recorded yet.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {vitals.map(v => (
-                          <div key={v.id} className="p-4 bg-gray-50 rounded-2xl flex flex-wrap gap-4 items-center justify-between">
-                             <div className="flex items-center gap-4">
-                                <div className="p-2 bg-white rounded-lg text-blue-600 shadow-sm">
-                                   <Activity size={16} />
-                                </div>
-                                <div>
-                                   <p className="text-xs font-black text-gray-900">{formatDate(v.createdAt)} at {formatTime(v.createdAt)}</p>
-                                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Taken by {v.takenBy}</p>
-                                </div>
-                             </div>
-                             <div className="flex gap-4">
-                                {v.bp && <div className="text-center"><p className="text-[10px] font-black text-gray-400 uppercase">BP</p><p className="text-sm font-black">{v.bp}</p></div>}
-                                {v.temp && <div className="text-center"><p className="text-[10px] font-black text-gray-400 uppercase">Temp</p><p className="text-sm font-black">{v.temp}°C</p></div>}
-                                {v.pulse && <div className="text-center"><p className="text-[10px] font-black text-gray-400 uppercase">PR</p><p className="text-sm font-black">{v.pulse}</p></div>}
-                                {v.spo2 && <div className="text-center"><p className="text-[10px] font-black text-gray-400 uppercase">SpO2</p><p className="text-sm font-black">{v.spo2}%</p></div>}
-                                {v.resp && <div className="text-center"><p className="text-[10px] font-black text-gray-400 uppercase">Resp</p><p className="text-sm font-black">{v.resp}</p></div>}
-                             </div>
+
+                    {vitals.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {[
+                          { label: 'Temp', value: vitals[0].temp, unit: '°C', icon: Thermometer, color: 'text-orange-500', bgColor: 'bg-orange-50' },
+                          { label: 'BP', value: vitals[0].bp, unit: '', icon: Activity, color: 'text-blue-500', bgColor: 'bg-blue-50' },
+                          { label: 'Pulse', value: vitals[0].pulse, unit: 'bpm', icon: Activity, color: 'text-red-500', bgColor: 'bg-red-50' },
+                          { label: 'SpO2', value: vitals[0].spo2, unit: '%', icon: Wind, color: 'text-emerald-500', bgColor: 'bg-emerald-50' },
+                          { label: 'Resp', value: vitals[0].resp, unit: 'cpm', icon: Activity, color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+                          { label: 'Weight', value: vitals[0].weight, unit: 'kg', icon: Activity, color: 'text-gray-500', bgColor: 'bg-gray-50' },
+                        ].map((stat, i) => (
+                          <div key={i} className={cn("p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center text-center", stat.bgColor)}>
+                             <stat.icon size={16} className={cn("mb-2", stat.color)} />
+                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                             <p className="text-sm font-black text-gray-900">{stat.value || '--'}<span className="text-[10px] ml-0.5 opacity-50">{stat.unit}</span></p>
                           </div>
                         ))}
                       </div>
                     )}
+
+                    <div className="pt-4 border-t border-gray-50">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Observation Timeline</h4>
+                      {vitals.length === 0 ? (
+                        <div className="p-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                           <Activity className="mx-auto text-gray-300 mb-2" size={32} />
+                           <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No vitals recorded yet.</p>
+                           <button onClick={() => setShowVitalsModal(true)} className="mt-4 text-xs font-black text-blue-600 hover:underline">Start Clinical Recording</button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {vitals.map(v => (
+                            <div key={v.id} className="p-4 bg-white border border-gray-50 rounded-2xl flex flex-wrap gap-4 items-center justify-between hover:shadow-md hover:border-blue-100 transition-all group">
+                               <div className="flex items-center gap-4">
+                                  <div className="p-2.5 bg-gray-50 rounded-xl text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                     <Activity size={18} />
+                                  </div>
+                                  <div>
+                                     <p className="text-xs font-black text-gray-900">{formatDate(v.createdAt)} at {formatTime(v.createdAt)}</p>
+                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Observed by {v.takenBy}</p>
+                                  </div>
+                               </div>
+                               <div className="flex gap-4 items-center">
+                                  {v.bp && <div className="px-3 py-1 bg-gray-50 rounded-lg text-center"><p className="text-[8px] font-black text-gray-400 uppercase leading-none mb-1">BP</p><p className="text-xs font-black">{v.bp}</p></div>}
+                                  {v.temp && <div className="px-3 py-1 bg-gray-50 rounded-lg text-center"><p className="text-[8px] font-black text-gray-400 uppercase leading-none mb-1">Temp</p><p className="text-xs font-black text-orange-600">{v.temp}°C</p></div>}
+                                  {v.pulse && <div className="px-3 py-1 bg-gray-50 rounded-lg text-center"><p className="text-[8px] font-black text-gray-400 uppercase leading-none mb-1">PR</p><p className="text-xs font-black text-red-600">{v.pulse}</p></div>}
+                                  {v.spo2 && <div className="px-3 py-1 bg-gray-50 rounded-lg text-center"><p className="text-[8px] font-black text-gray-400 uppercase leading-none mb-1">SpO2</p><p className="text-xs font-black text-emerald-600">{v.spo2}%</p></div>}
+                                  {v.resp && <div className="px-3 py-1 bg-gray-50 rounded-lg text-center"><p className="text-[8px] font-black text-gray-400 uppercase leading-none mb-1">Resp</p><p className="text-xs font-black text-indigo-600">{v.resp}</p></div>}
+                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                 )}
 
@@ -827,30 +945,63 @@ export default function PatientDetails() {
                         </div>
                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                           <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                             <Stethoscope size={14} /> Treatment Plan
-                           </h4>
-                           {isDoctor && (
-                             <textarea 
-                               className="w-full p-4 bg-gray-50 rounded-2xl text-sm font-medium h-48 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
-                               placeholder="Define the long-term clinical goal and steps..."
-                               onBlur={async (e) => {
-                                 if (!e.target.value) return;
-                                 const plan = await apiService.addTreatmentPlan(id!, { content: e.target.value, authorId: profile!.uid, authorName: profile!.name });
-                                 setTreatmentPlans(p => [plan, ...p]);
-                                 e.target.value = '';
-                               }}
-                             />
-                           )}
-                           <div className="space-y-3">
-                              {treatmentPlans.map(tp => (
-                                <div key={tp.id} className="p-4 bg-white border border-gray-100 rounded-xl">
-                                   <p className="text-sm text-gray-700">{tp.content}</p>
-                                   <p className="text-[10px] text-gray-400 mt-2 font-bold">{tp.authorName} • {formatDate(tp.createdAt)}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                           <div className="space-y-4">
+                              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <Activity size={14} /> Clinical Diagnosis
+                              </h4>
+                              {isDoctor ? (
+                                <textarea 
+                                  className="w-full p-4 bg-blue-50/30 rounded-2xl text-sm font-black h-24 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all border border-blue-50"
+                                  placeholder="Enter definitive or differential diagnosis..."
+                                  defaultValue={patient.diagnosis || ''}
+                                  onBlur={async (e) => {
+                                    try {
+                                      const updated = await apiService.updatePatient(id!, { diagnosis: e.target.value });
+                                      setPatient(prev => prev ? { ...prev, diagnosis: updated.diagnosis, workflowStatus: prev.workflowStatus } : null);
+                                    } catch (err) {
+                                      alert("Failed to save diagnosis");
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                   <p className="text-sm font-black text-gray-700">{patient.diagnosis || 'No diagnosis recorded yet.'}</p>
                                 </div>
-                              ))}
+                              )}
+                           </div>
+
+                           <div className="space-y-4">
+                              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <Stethoscope size={14} /> Treatment Plan
+                              </h4>
+                              {isDoctor && (
+                                <textarea 
+                                  className="w-full p-4 bg-gray-50 rounded-2xl text-sm font-medium h-48 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
+                                  placeholder="Define the long-term clinical goal and steps..."
+                                  onBlur={async (e) => {
+                                    if (!e.target.value) return;
+                                    const plan = await apiService.addTreatmentPlan(id!, { content: e.target.value, authorId: profile!.uid, authorName: profile!.name });
+                                    setTreatmentPlans(p => [plan, ...p]);
+                                    e.target.value = '';
+                                    
+                                    // Auto-move to treatment stage
+                                    if (patient?.workflowStatus === 'consultation') {
+                                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment');
+                                      setPatient(updated);
+                                    }
+                                  }}
+                                />
+                              )}
+                              <div className="space-y-3">
+                                 {treatmentPlans.map(tp => (
+                                   <div key={tp.id} className="p-4 bg-white border border-gray-100 rounded-xl">
+                                      <p className="text-sm text-gray-700">{tp.content}</p>
+                                      <p className="text-[10px] text-gray-400 mt-2 font-bold">{tp.authorName} • {formatDate(tp.createdAt)}</p>
+                                   </div>
+                                 ))}
+                              </div>
                            </div>
                         </div>
 
@@ -867,6 +1018,12 @@ export default function PatientDetails() {
                                  const rev = await apiService.addReview(id!, { content: e.target.value, authorId: profile!.uid, authorName: profile!.name });
                                  setReviews(r => [rev, ...r]);
                                  e.target.value = '';
+
+                                 // Auto-move to treatment stage after review
+                                 if (patient?.workflowStatus === 'consultation') {
+                                   const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment');
+                                   setPatient(updated);
+                                 }
                                }}
                              />
                            )}
@@ -880,6 +1037,68 @@ export default function PatientDetails() {
                            </div>
                         </div>
                      </div>
+                  </motion.div>
+                )}
+
+                 {activeTab === 'appointments' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    <div className="flex items-center justify-between">
+                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Scheduled Visits</h3>
+                       <button 
+                         onClick={() => setShowAppointmentModal(true)}
+                         className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black shadow-lg"
+                       >
+                         Book Return Visit
+                       </button>
+                    </div>
+
+                    <div className="space-y-4">
+                       {appointments.map(app => (
+                         <div key={app.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                               <div className={cn(
+                                 "w-12 h-12 rounded-xl flex items-center justify-center",
+                                 app.status === 'completed' ? "bg-emerald-100 text-emerald-600" :
+                                 app.status === 'cancelled' ? "bg-red-100 text-red-600" :
+                                 "bg-blue-100 text-blue-600"
+                               )}>
+                                  <CalendarDays size={20} />
+                               </div>
+                               <div>
+                                  <p className="text-sm font-black text-gray-900 leading-none mb-1">{app.type.replace('_', ' ')} with {app.doctorName || 'Any Staff'}</p>
+                                  <p className="text-xs font-bold text-gray-400 capitalize">{formatDate(app.dateTime)} @ {new Date(app.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                               </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                               <span className={cn(
+                                 "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                                 app.status === 'scheduled' ? "bg-amber-50 border-amber-100 text-amber-600" :
+                                 app.status === 'completed' ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                                 "bg-red-50 border-red-100 text-red-600"
+                               )}>
+                                 {app.status}
+                               </span>
+                               {app.status === 'scheduled' && (
+                                 <button 
+                                   onClick={async () => {
+                                     await apiService.updateAppointment(app.id, { status: 'cancelled' });
+                                     setAppointments(as => as.map(a => a.id === app.id ? {...a, status: 'cancelled'} : a));
+                                   }}
+                                   className="text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest underline decoration-red-100"
+                                 >
+                                   Cancel
+                                 </button>
+                               )}
+                            </div>
+                         </div>
+                       ))}
+                       {appointments.length === 0 && (
+                         <div className="py-20 text-center flex flex-col items-center">
+                            <CalendarDays size={48} className="text-gray-100 mb-4" />
+                            <p className="text-gray-300 font-bold uppercase text-xs tracking-widest">No appointments booked yet</p>
+                         </div>
+                       )}
+                    </div>
                   </motion.div>
                 )}
 

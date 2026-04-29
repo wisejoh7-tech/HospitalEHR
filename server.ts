@@ -455,21 +455,63 @@ async function startServer() {
   // Patients
   app.post('/api/patients', async (req, res) => {
     try {
-      const data = req.body;
+      const {
+        name,
+        gender,
+        dob,
+        age,
+        bloodGroup,
+        address,
+        nextOfKinName,
+        nextOfKinPhone,
+        nextOfKinRelationship,
+        photoUrl,
+        fingerprint,
+        status,
+        workflowStatus
+      } = req.body;
+
+      // Basic validation for required fields
+      if (!name || !gender || !dob) {
+        return res.status(400).json({ error: 'Name, gender, and date of birth are required' });
+      }
+
       const patient = await prisma.patient.create({
         data: {
-          ...data,
-          dob: new Date(data.dob),
-          nextVisit: data.nextVisit ? new Date(data.nextVisit) : null,
-          age: parseInt(data.age) || 0,
-          status: data.status || 'outpatient'
+          name,
+          gender,
+          dob: new Date(dob),
+          age: parseInt(age) || 0,
+          bloodGroup,
+          address,
+          nextOfKinName,
+          nextOfKinPhone,
+          nextOfKinRelationship,
+          photoUrl,
+          fingerprint,
+          status: status || 'outpatient',
+          workflowStatus: workflowStatus || 'vitals'
         }
       });
-      await logAction('system', 'System', `Registered patient: ${patient.name}`, patient.id, 'Patient');
+      await logAction('system', 'System', `Registered patient: ${patient.name}. Sent to Vitals.`, patient.id, 'Patient');
       res.status(201).json(patient);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to register patient' });
+      console.error('Patient registration error:', error);
+      res.status(500).json({ error: 'Failed to register patient. Please check your data.' });
+    }
+  });
+
+  app.patch('/api/patients/:id/workflow', async (req, res) => {
+    try {
+      const { workflowStatus } = req.body;
+      const patient = await prisma.patient.update({
+        where: { id: req.params.id },
+        data: { workflowStatus }
+      });
+      await logAction('system', 'Clinical Flow', `Moved patient ${patient.name} to ${workflowStatus}`, patient.id, 'Patient');
+      res.json(patient);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update workflow' });
     }
   });
 
@@ -659,7 +701,7 @@ async function startServer() {
 
   app.post('/api/patients/:id/prescriptions', async (req, res) => {
     try {
-      const { medication, dosage, frequency, duration, authorId } = req.body;
+      const { medication, dosage, frequency, duration, authorId, authorName } = req.body;
       const prescription = await prisma.prescription.create({
         data: {
           patientId: req.params.id,
@@ -668,10 +710,11 @@ async function startServer() {
           frequency,
           duration,
           authorId,
+          authorName: authorName || 'Unknown Doctor',
           status: 'active'
         }
       });
-      await logAction(authorId, 'Doctor', `Prescribed ${medication}`, req.params.id, 'Prescription');
+      await logAction(authorId, authorName || 'Doctor', `Prescribed ${medication}`, req.params.id, 'Prescription');
       res.status(201).json(prescription);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create prescription' });
@@ -939,6 +982,19 @@ async function startServer() {
     }
   });
 
+  // Global Billing for Admin
+  app.get('/api/bills', async (req, res) => {
+    try {
+      const bills = await prisma.bill.findMany({
+        include: { items: true, patient: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(bills);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch global bills' });
+    }
+  });
+
   app.post('/api/pricing', async (req, res) => {
     try {
       const { name, category, price } = req.body;
@@ -983,6 +1039,70 @@ async function startServer() {
       res.json(patient);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch patient details' });
+    }
+  });
+
+  // Appointments
+  app.get('/api/appointments', async (req, res) => {
+    try {
+      const { patientId } = req.query;
+      const appointments = await prisma.appointment.findMany({
+        where: patientId ? { patientId: String(patientId) } : {},
+        include: { patient: true },
+        orderBy: { dateTime: 'asc' }
+      });
+      res.json(appointments);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch appointments' });
+    }
+  });
+
+  app.post('/api/appointments', async (req, res) => {
+    try {
+      const { patientId, doctorId, doctorName, dateTime, reason, type, status } = req.body;
+      const appointment = await prisma.appointment.create({
+        data: {
+          patientId,
+          doctorId,
+          doctorName,
+          dateTime: new Date(dateTime),
+          reason,
+          type,
+          status: status || 'scheduled'
+        }
+      });
+      await logAction('system', 'System', `Booked appointment for patient ID: ${patientId}`, appointment.id, 'Appointment');
+      res.status(201).json(appointment);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to create appointment' });
+    }
+  });
+
+  app.patch('/api/appointments/:id', async (req, res) => {
+    try {
+      const { status, dateTime, reason, doctorName } = req.body;
+      const appointment = await prisma.appointment.update({
+        where: { id: req.params.id },
+        data: { 
+          status, 
+          dateTime: dateTime ? new Date(dateTime) : undefined,
+          reason,
+          doctorName
+        }
+      });
+      res.json(appointment);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update appointment' });
+    }
+  });
+
+  app.delete('/api/appointments/:id', async (req, res) => {
+    try {
+      await prisma.appointment.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete appointment' });
     }
   });
 

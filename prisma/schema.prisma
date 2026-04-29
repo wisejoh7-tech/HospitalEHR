@@ -52,10 +52,12 @@ model Patient {
   allergies     String?        // Stored as comma-separated or JSON
   admissionDate DateTime       @default(now())
   status        String         // inpatient, outpatient, discharged
+  workflowStatus String        @default("registered") // registered, vitals, consultation, treatment, pharmacy, discharged
   bed           Bed?
   wardId        String?
   bedId         String?
   dischargeReason String?
+  diagnosis     String?
   notes         ClinicalNote[]
   prescriptions Prescription[]
   investigations Investigation[]
@@ -63,6 +65,21 @@ model Patient {
   bills         Bill[]
   treatmentPlans TreatmentPlan[]
   reviews       Review[]
+  appointments  Appointment[]
+}
+
+model Appointment {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String?
+  doctorName  String?
+  dateTime    DateTime
+  reason      String
+  status      String   // scheduled, completed, cancelled
+  type        String   // consultation, follow-up, investigation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Bill {
@@ -151,6 +168,7 @@ model Prescription {
   patientId  String
   patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   authorId   String
+  authorName String   @default("Unknown")
   medication String
   dosage     String
   frequency  String

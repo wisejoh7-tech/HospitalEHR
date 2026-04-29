@@ -1,6 +1,6 @@
 {
-  "name": "CaseNotes EHR System",
-  "description": "A professional Health Information Management System (EHR) featuring ward/bed occupancy, patient clinical notes, prescriptions, and role-based access control.",
+  "name": "VIVO Teaching Hospital EHR",
+  "description": "A professional Teaching Hospital EHR System featuring ward management, patient clinical notes, academic rounds tracking, and medical education modules.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": []
 }

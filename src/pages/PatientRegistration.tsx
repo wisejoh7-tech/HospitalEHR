@@ -33,6 +33,7 @@ export default function PatientRegistration() {
     age: '',
     bloodGroup: 'A+',
     address: '',
+    fingerprintId: '',
     nextOfKinName: '',
     nextOfKinPhone: '',
     nextOfKinRelationship: '',
@@ -45,6 +46,7 @@ export default function PatientRegistration() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [qualityError, setQualityError] = useState<string | null>(null);
   const [fingerprintStatus, setFingerprintStatus] = useState<'idle' | 'scanning' | 'success'>('idle');
+  const [enrolledFingerprintId, setEnrolledFingerprintId] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,10 +58,10 @@ export default function PatientRegistration() {
     let variance = 0;
     let prevIntensity = 0;
 
-    // Sample every 4th pixel for performance
-    const step = 16; 
+    // Sample pixels for brightness and sharpness estimation
+    const skip = 32; 
     let count = 0;
-    for (let i = 0; i < data.length; i += 4 * step) {
+    for (let i = 0; i < data.length; i += 4 * skip) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
@@ -76,9 +78,10 @@ export default function PatientRegistration() {
     const avgBrightness = brightness / count;
     const sharpness = variance / count;
 
-    if (avgBrightness < 50) return { valid: false, reason: "Too dark. Please improve lighting." };
-    if (avgBrightness > 220) return { valid: false, reason: "Too bright. Please reduce glare." };
-    if (sharpness < 15) return { valid: false, reason: "Image blurry. Hold camera steady." };
+    // More lenient thresholds for simulated environment
+    if (avgBrightness < 10) return { valid: false, reason: "Too dark. Please improve lighting." };
+    if (avgBrightness > 250) return { valid: false, reason: "Too bright. Please reduce glare." };
+    if (sharpness < 2) return { valid: false, reason: "Image blurry. Hold camera steady." };
 
     return { valid: true };
   };
@@ -86,15 +89,36 @@ export default function PatientRegistration() {
   const startCamera = async () => {
     setIsCameraActive(true);
     setQualityError(null);
+    setError(null);
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Biometric capture requires a secure connection (HTTPS) and camera support.");
+      setIsCameraActive(false);
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } } 
+        video: { facingMode: "user" }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(e => {
+            console.error("Video play failed:", e);
+            setError("Failed to start video stream.");
+          });
+        };
       }
-    } catch (err) {
-      setError("Unable to access camera. Check permissions.");
+    } catch (err: any) {
+      console.error("Camera error details:", err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError("No camera device found.");
+      } else {
+        setError(`Unable to access camera: ${err.message || 'Unknown error'}`);
+      }
       setIsCameraActive(false);
     }
   };
@@ -116,7 +140,7 @@ export default function PatientRegistration() {
           return;
         }
 
-        const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
         setCapturedPhoto(dataUrl);
         setQualityError(null);
         stopCamera();
@@ -128,21 +152,32 @@ export default function PatientRegistration() {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
       setIsCameraActive(false);
     }
   };
 
-  const simulateFingerprint = () => {
-    const id = prompt("Simulate Biometric Enrollment (Enter a unique Fingerprint ID)");
-    if (!id) return;
+  const scanningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const simulateFingerprint = () => {
+    if (fingerprintStatus !== 'idle') return;
+    
     setFingerprintStatus('scanning');
-    setTimeout(() => {
+    
+    // Clear any existing timer
+    if (scanningTimerRef.current) clearTimeout(scanningTimerRef.current);
+    
+    // Simulate a complex biometric analysis process
+    scanningTimerRef.current = setTimeout(() => {
+      // Auto-generate a unique biometric token for the simulation
+      const simulatedId = `BIO_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      setEnrolledFingerprintId(simulatedId);
       setFingerprintStatus('success');
-      // Store the simulated ID in a temporary ref or local state if needed, 
-      // but we'll just pass it to the submission.
-      (window as any)._tempFingerprint = id;
-    }, 2500);
+      
+      // Auto-populate the fingerprintId field as well for visibility
+      setFormData(prev => ({ ...prev, fingerprintId: simulatedId }));
+      scanningTimerRef.current = null;
+    }, 2000);
   };
 
   const handleSubmit = async () => {
@@ -153,13 +188,12 @@ export default function PatientRegistration() {
         ...formData,
         age: parseInt(formData.age),
         photoUrl: capturedPhoto || undefined,
-        fingerprint: fingerprintStatus === 'success' ? (window as any)._tempFingerprint : undefined
+        fingerprint: enrolledFingerprintId || formData.fingerprintId || undefined
       });
       setRegisteredPatient(patient);
-      delete (window as any)._tempFingerprint;
       setStep(4);
-    } catch (err) {
-      setError("Registration failed. Please check all fields.");
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please ensure all required fields are filled.");
     } finally {
       setLoading(false);
     }
@@ -174,7 +208,7 @@ export default function PatientRegistration() {
       <div className="flex items-center justify-between border-b pb-6">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Patient Enrollment</h1>
-          <p className="text-gray-500 font-medium italic">NDA Medical Center - Digital Admissions v3.0</p>
+          <p className="text-gray-500 font-medium italic">VIVO Medical Center - Digital Admissions v3.0</p>
         </div>
         <div className="flex items-center gap-2">
            {[1, 2, 3].map(i => (
@@ -261,6 +295,29 @@ export default function PatientRegistration() {
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
                 />
+                
+                <div className="space-y-4">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Fingerprint size={14} className="text-blue-500" /> Fingerprint ID (Optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter device-specific Biometric ID"
+                      className="flex-1 p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100 font-bold"
+                      value={formData.fingerprintId}
+                      onChange={(e) => setFormData({...formData, fingerprintId: e.target.value})}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="px-6 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-all flex items-center gap-2 font-black text-[10px] uppercase tracking-widest shadow-sm"
+                    >
+                      <Fingerprint size={16} /> Scan
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
                    {(['outpatient', 'inpatient'] as const).map(s => (
                      <button
@@ -322,7 +379,11 @@ export default function PatientRegistration() {
                         >
                           <X size={24} />
                         </button>
-                        <button onClick={capturePhoto} className="p-4 bg-white rounded-full shadow-2xl text-blue-600 hover:scale-110 active:scale-95 transition-all">
+                        <button 
+                           type="button"
+                           onClick={capturePhoto} 
+                           className="p-4 bg-white rounded-full shadow-2xl text-blue-600 hover:scale-110 active:scale-95 transition-all"
+                         >
                           <CheckCircle size={32} />
                         </button>
                       </div>
@@ -332,6 +393,7 @@ export default function PatientRegistration() {
                       <img src={capturedPhoto} className="w-full h-full object-cover" alt="Captured" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                         <button 
+                          type="button"
                           onClick={() => { setCapturedPhoto(null); startCamera(); }} 
                           className="px-6 py-3 bg-white text-gray-900 rounded-2xl font-black text-sm flex items-center gap-2 hover:scale-105 transition-all"
                         >
@@ -344,7 +406,23 @@ export default function PatientRegistration() {
                        <div className="p-6 bg-white rounded-full shadow-xl text-blue-600">
                           <Camera size={40} />
                        </div>
-                       <button onClick={startCamera} className="text-sm font-black text-blue-600 hover:underline">Launch Camera</button>
+                       <button 
+                         type="button"
+                         onClick={startCamera} 
+                         className="text-sm font-black text-blue-600 hover:underline"
+                       >
+                         Launch Camera
+                       </button>
+                       <button 
+                         type="button"
+                         onClick={() => {
+                           setCapturedPhoto("https://api.dicebear.com/7.x/avataaars/svg?seed=" + Math.random());
+                           setQualityError(null);
+                         }}
+                         className="text-[10px] font-bold text-gray-400 hover:text-blue-600 transition-colors"
+                       >
+                         (Simulate Photo)
+                       </button>
                     </div>
                   )}
                   <canvas ref={canvasRef} className="hidden" />
@@ -357,9 +435,10 @@ export default function PatientRegistration() {
                   <Fingerprint size={14} className="text-blue-500" /> Biometric Identity
                 </label>
                 <div 
+                  onClick={() => fingerprintStatus === 'idle' && simulateFingerprint()}
                   className={cn(
                     "aspect-[4/3] rounded-3xl flex flex-col items-center justify-center gap-6 border-4 border-dashed transition-all relative overflow-hidden",
-                    fingerprintStatus === 'idle' ? "bg-gray-50 border-gray-200" :
+                    fingerprintStatus === 'idle' ? "bg-gray-50 border-gray-200 cursor-pointer hover:bg-blue-50/50 hover:border-blue-300 group" :
                     fingerprintStatus === 'scanning' ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200"
                   )}
                 >
@@ -407,23 +486,39 @@ export default function PatientRegistration() {
                       fingerprintStatus === 'scanning' ? "text-blue-600" : "text-green-600"
                     )}>
                       {fingerprintStatus === 'idle' ? "Scanner Standby" :
-                       fingerprintStatus === 'scanning' ? "Analyzing Patterns..." : "Identity Verified"}
+                       fingerprintStatus === 'scanning' ? "Capturing Ridge Patterns..." : "Identity Enrolled"}
                     </p>
 
+                    {fingerprintStatus === 'success' && enrolledFingerprintId && (
+                      <p className="text-[10px] font-black text-gray-400 font-mono bg-gray-100 px-3 py-1 rounded-full inline-block">
+                        TOKEN: {enrolledFingerprintId}
+                      </p>
+                    )}
+
                     {fingerprintStatus === 'idle' ? (
-                      <button 
-                        onClick={simulateFingerprint}
-                        className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
-                      >
-                        Scan Fingerprint
-                      </button>
+                      <div className="space-y-3">
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); simulateFingerprint(); }}
+                          className="w-full px-8 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <Fingerprint size={16} /> Begin Enrollment
+                        </button>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Ensure scanner is clean and dry</p>
+                      </div>
                     ) : fingerprintStatus === 'success' ? (
-                      <button 
-                        onClick={() => setFingerprintStatus('idle')}
-                        className="text-xs font-bold text-gray-400 flex items-center gap-1 mx-auto"
-                      >
-                        <RefreshCcw size={12} /> Rescan
-                      </button>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 justify-center">
+                           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                           <p className="text-[10px] font-black text-green-600 uppercase tracking-widest">Biometric Data Securely Stored</p>
+                        </div>
+                        <button 
+                          onClick={() => { setFingerprintStatus('idle'); setEnrolledFingerprintId(null); }}
+                          className="text-xs font-bold text-gray-400 flex items-center gap-1 mx-auto hover:text-gray-900 transition-colors"
+                        >
+                          <RefreshCcw size={12} /> Clear and Rescan
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 </div>

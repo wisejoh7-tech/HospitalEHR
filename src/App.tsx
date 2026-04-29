@@ -22,7 +22,13 @@ const RevenueSettings = lazy(() => import('./pages/RevenueSettings'));
 const Billing = lazy(() => import('./pages/Billing'));
 const Logs = lazy(() => import('./pages/Logs'));
 const Login = lazy(() => import('./pages/Login'));
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+const StaffLogin = lazy(() => import('./pages/StaffLogin'));
 const VitalsRecord = lazy(() => import('./pages/VitalsRecord'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const AcademicRounds = lazy(() => import('./pages/AcademicRounds'));
+const MedicalEducation = lazy(() => import('./pages/MedicalEducation'));
+const ClinicalTrials = lazy(() => import('./pages/ClinicalTrials'));
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
   const { user, profile, loading } = useAuth();
@@ -39,7 +45,7 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?
   }
 
   if (!profile) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/staff/login" replace />;
   }
 
   if (roles && profile && !roles.includes(profile.role)) {
@@ -61,8 +67,8 @@ function RoleRedirect() {
     case 'radiology': return <Navigate to="/investigations" replace />;
     case 'record': 
     case 'doctor': return <Navigate to="/patients" replace />;
-    case 'admin': return <Dashboard />;
-    default: return <Navigate to="/login" replace />;
+    case 'admin': return <Navigate to="/dashboard" replace />;
+    default: return <Navigate to="/staff/login" replace />;
   }
 }
 
@@ -73,20 +79,26 @@ export default function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/staff/login" element={<StaffLogin />} />
             
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/" element={<RoleRedirect />} />
               <Route path="/dashboard" element={<ProtectedRoute roles={['admin', 'doctor', 'pharmacy_admin']}><Dashboard /></ProtectedRoute>} />
-              <Route path="/wards" element={<ProtectedRoute roles={['admin', 'record', 'doctor', 'nurse']}><WardsOverview /></ProtectedRoute>} />
+              <Route path="/wards" element={<ProtectedRoute roles={['admin', 'doctor', 'nurse']}><WardsOverview /></ProtectedRoute>} />
               <Route path="/patients" element={<PatientsList />} />
               <Route path="/vitals-record" element={<ProtectedRoute roles={['admin', 'nurse']}><VitalsRecord /></ProtectedRoute>} />
               <Route path="/patients/register" element={<ProtectedRoute roles={['admin', 'record']}><PatientRegistration /></ProtectedRoute>} />
-              <Route path="/admission" element={<ProtectedRoute roles={['admin', 'nurse', 'record']}><PatientAdmission /></ProtectedRoute>} />
+              <Route path="/admission" element={<ProtectedRoute roles={['admin', 'nurse', 'doctor']}><PatientAdmission /></ProtectedRoute>} />
               <Route path="/patients/:id" element={<PatientDetails />} />
               <Route path="/investigations" element={<ProtectedRoute roles={['admin', 'doctor', 'nurse', 'lab', 'radiology']}><Investigations /></ProtectedRoute>} />
               <Route path="/pharmacy" element={<ProtectedRoute roles={['admin', 'doctor', 'pharmacy', 'pharmacy_admin']}><Pharmacy /></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute roles={['admin', 'pharmacy_admin']}><StaffManagement /></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Billing /></ProtectedRoute>} />
+              <Route path="/appointments" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Appointments /></ProtectedRoute>} />
+              <Route path="/academic-rounds" element={<ProtectedRoute roles={['admin', 'doctor']}><AcademicRounds /></ProtectedRoute>} />
+              <Route path="/medical-education" element={<ProtectedRoute roles={['admin', 'doctor']}><MedicalEducation /></ProtectedRoute>} />
+              <Route path="/clinical-research" element={<ProtectedRoute roles={['admin', 'doctor']}><ClinicalTrials /></ProtectedRoute>} />
               <Route path="/revenue" element={<ProtectedRoute roles={['admin']}><RevenueSettings /></ProtectedRoute>} />
               <Route path="/logs" element={<ProtectedRoute roles={['admin']}><Logs /></ProtectedRoute>} />
               <Route path="/records" element={<ProtectedRoute roles={['admin', 'record']}><PatientsList /></ProtectedRoute>} />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hospital, LogIn, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import { Hospital, LogIn, ShieldAlert, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -43,9 +43,13 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    
+    // Clean phone number (remove spaces, dashes)
+    const cleanPhone = phone.replace(/\s+/g, '').replace(/-/g, '');
+
     try {
       const userData = await apiService.loginStaff({ 
-        phone: phone.trim(), 
+        phone: cleanPhone, 
         password: password.trim() 
       });
       loginManual(userData);
@@ -61,7 +65,7 @@ export default function Login() {
     e.preventDefault();
     setError(null);
 
-    const trimmedPhone = phone.trim();
+    const trimmedPhone = phone.trim().replace(/\s+/g, '').replace(/-/g, '');
     const trimmedPassword = password.trim();
     const trimmedName = name.trim();
 
@@ -119,7 +123,7 @@ export default function Login() {
             transition={{ delay: 0.2 }}
             className="text-5xl font-black mb-4 tracking-tight"
           >
-            CaseNotes® VIVO
+            VIVO®
           </motion.h1>
           <motion.p 
             initial={{ y: 20, opacity: 0 }}
@@ -127,7 +131,7 @@ export default function Login() {
             transition={{ delay: 0.3 }}
             className="text-xl text-blue-50 font-medium"
           >
-            Military Grade Hospital Information Management System.
+            Teaching Hospital Advanced Healthcare Ecosystem.
           </motion.p>
         </div>
       </div>
@@ -142,10 +146,10 @@ export default function Login() {
               </div>
             </div>
             <h2 className="text-3xl font-black text-gray-900 mb-2">
-              {isRegistering ? 'Staff Registration' : 'NDA Hospital Portal'}
+              {isRegistering ? 'Staff Registration' : 'VIVO Hospital Portal'}
             </h2>
             <p className="text-gray-500 font-medium">
-              {isRegistering ? 'Create your professional account' : 'CaseNotes® Administrative Control Panel'}
+              {isRegistering ? 'Create your professional account' : 'VIVO® Administrative Control Panel'}
             </p>
           </div>
 
@@ -257,6 +261,24 @@ export default function Login() {
             </div>
           </form>
 
+          <div className="flex flex-col gap-3 pt-6 border-t border-gray-100 mt-8">
+               <button
+                 onClick={() => navigate('/admin/login')}
+                 className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:bg-black flex items-center justify-center gap-3"
+               >
+                 <ShieldCheck size={20} />
+                 Admin Portal
+               </button>
+               
+               <button
+                 onClick={() => navigate('/staff/login')}
+                 className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:bg-blue-700 flex items-center justify-center gap-3"
+               >
+                 <Hospital size={20} />
+                 Staff Portal
+               </button>
+          </div>
+
           <div className="mt-12 text-center space-y-4">
             <button 
               onClick={async () => {
@@ -275,7 +297,7 @@ export default function Login() {
             </button>
             <div>
               <p className="text-gray-300 text-[10px] font-black tracking-widest uppercase mb-1">System Audit Active</p>
-              <p className="text-gray-900 font-black text-xl italic">MediaVille®</p>
+              <p className="text-gray-900 font-black text-xl italic">VIVO®</p>
             </div>
           </div>
         </div>

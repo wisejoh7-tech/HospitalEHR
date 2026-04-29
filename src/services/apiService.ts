@@ -1,8 +1,42 @@
-import { Patient, Ward, ClinicalNote, Prescription, Investigation, VitalSign, BedStatus } from '../types';
+import { Patient, Ward, ClinicalNote, Prescription, Investigation, VitalSign, BedStatus, WorkflowStatus, Appointment } from '../types';
 
 const API_BASE = '/api';
 
 export const apiService = {
+  async getAppointments(query?: { patientId?: string }): Promise<Appointment[]> {
+    const params = new URLSearchParams(query as any).toString();
+    const res = await fetch(`${API_BASE}/appointments?${params}`);
+    if (!res.ok) throw new Error('Failed to fetch appointments');
+    return res.json();
+  },
+
+  async createAppointment(data: Partial<Appointment>): Promise<Appointment> {
+    const res = await fetch(`${API_BASE}/appointments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create appointment');
+    return res.json();
+  },
+
+  async updateAppointment(id: string, data: Partial<Appointment>): Promise<Appointment> {
+    const res = await fetch(`${API_BASE}/appointments/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update appointment');
+    return res.json();
+  },
+
+  async deleteAppointment(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/appointments/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete appointment');
+  },
+
   async getWards(): Promise<Ward[]> {
     const res = await fetch(`${API_BASE}/wards`);
     if (!res.ok) throw new Error('Failed to fetch wards');
@@ -21,7 +55,10 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Registration failed');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Registration failed');
+    }
     return res.json();
   },
 
@@ -199,7 +236,10 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to register staff');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to register staff');
+    }
     return res.json();
   },
 
@@ -253,6 +293,16 @@ export const apiService = {
     if (!res.ok) throw new Error('Failed to delete patient');
   },
 
+  async updatePatientWorkflowStatus(id: string, workflowStatus: WorkflowStatus): Promise<Patient> {
+    const res = await fetch(`${API_BASE}/patients/${id}/workflow`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workflowStatus }),
+    });
+    if (!res.ok) throw new Error('Failed to update workflow status');
+    return res.json();
+  },
+
   async findPatientByFingerprint(fingerprintId: string): Promise<Patient> {
     const res = await fetch(`${API_BASE}/patients/fingerprint/${fingerprintId}`);
     if (!res.ok) {
@@ -297,6 +347,12 @@ export const apiService = {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Payment failed');
+    return res.json();
+  },
+
+  async getBills(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/bills`);
+    if (!res.ok) throw new Error('Failed to fetch global bills');
     return res.json();
   },
 

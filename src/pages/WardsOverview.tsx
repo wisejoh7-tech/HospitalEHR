@@ -228,36 +228,42 @@ export default function WardsOverview() {
                 </div>
               </div>
               
-              <div className="mt-2">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className={cn(
-                    "w-1.5 h-1.5 rounded-full shrink-0",
-                    bed.status === 'vacant' && "bg-green-500",
-                    bed.status === 'occupied' && "bg-red-500",
-                    bed.status === 'maintenance' && "bg-yellow-500"
-                  )} />
-                  <p className={cn("text-[9px] font-black uppercase tracking-wider opacity-60")}>
-                    Bed #{bed.id.slice(-4)}
-                  </p>
-                </div>
                 {bed.status === 'occupied' && bed.patient ? (
-                   <div className="space-y-0.5">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/patients/${bed.patient?.id}`);
-                        }}
-                        className="font-black text-xs truncate hover:underline text-left w-full"
-                      >
-                        {bed.patient.name} <span className="opacity-60 text-[9px] ml-1 font-bold">#{bed.patient.id}</span>
-                      </button>
-                   </div>
+                   <button 
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       navigate(`/patients/${bed.patient?.id}`);
+                     }}
+                     className="mt-2 text-left group/patient cursor-pointer w-full"
+                   >
+                     <div className="flex items-center gap-1.5 mb-1">
+                       <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-400" />
+                       <p className="text-[9px] font-black uppercase tracking-wider opacity-60">
+                         Bed #{bed.id.slice(-4)}
+                       </p>
+                     </div>
+                     <p className="font-black text-xs truncate group-hover/patient:underline leading-tight">
+                       {bed.patient.name}
+                     </p>
+                     <p className="opacity-40 text-[9px] font-bold">ID: {bed.patient.id.slice(0, 8)}...</p>
+                   </button>
                 ) : (
-                  <p className="font-black text-sm truncate">
-                    {bed.status === 'vacant' ? "Available" : "Maintenance"}
-                  </p>
+                   <div className="mt-2">
+                     <div className="flex items-center gap-1.5 mb-1">
+                       <div className={cn(
+                         "w-1.5 h-1.5 rounded-full shrink-0",
+                         bed.status === 'vacant' && "bg-green-500",
+                         bed.status === 'maintenance' && "bg-yellow-500"
+                       )} />
+                       <p className="text-[9px] font-black uppercase tracking-wider opacity-60">
+                         Bed #{bed.id.slice(-4)}
+                       </p>
+                     </div>
+                     <p className="font-black text-sm truncate">
+                       {bed.status === 'vacant' ? "Available" : "Maintenance"}
+                     </p>
+                   </div>
                 )}
-              </div>
 
               {canManage && (
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">

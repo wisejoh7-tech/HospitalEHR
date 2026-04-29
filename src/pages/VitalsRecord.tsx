@@ -25,8 +25,8 @@ export default function VitalsRecord() {
     const fetchPatients = async () => {
       try {
         const list = await apiService.getPatients();
-        // Specifically look for patients marked as 'pending_vitals' or just any outpatient/inpatient
-        setPatients(list);
+        // Specifically look for patients whose workflow status is 'vitals'
+        setPatients(list.filter(p => p.workflowStatus === 'vitals'));
         setLoading(false);
       } catch (err) {
         console.error(err);

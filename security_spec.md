@@ -1,4 +1,4 @@
-# Security Specification: CaseNotes EHR
+# Security Specification: VIVO Teaching Hospital EHR
 
 ## 1. Data Invariants
 - A `ClinicalNote` cannot be edited after creation.

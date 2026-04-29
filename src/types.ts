@@ -24,7 +24,10 @@ export interface Bed {
   wardId: string;
   status: BedStatus;
   patientId?: string;
+  patient?: Patient;
 }
+
+export type WorkflowStatus = 'registered' | 'vitals' | 'consultation' | 'laboratory' | 'radiology' | 'treatment' | 'pharmacy' | 'discharged';
 
 export interface Patient {
   id: string;
@@ -43,9 +46,11 @@ export interface Patient {
   allergies?: string[];
   admissionDate: string;
   status: 'inpatient' | 'outpatient' | 'discharged';
+  workflowStatus: WorkflowStatus; // The current stage in clinical workflow
   wardId?: string;
   bedId?: string;
   dischargeReason?: string;
+  diagnosis?: string;
   notes?: ClinicalNote[];
   vitals?: VitalSign[];
   prescriptions?: Prescription[];
@@ -53,6 +58,24 @@ export interface Patient {
   bills?: Bill[];
   treatmentPlans?: TreatmentPlan[];
   reviews?: Review[];
+  appointments?: Appointment[];
+}
+
+export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
+export type AppointmentType = 'consultation' | 'follow-up' | 'investigation';
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  patient?: Patient;
+  doctorId?: string;
+  doctorName?: string;
+  dateTime: string;
+  reason: string;
+  status: AppointmentStatus;
+  type: AppointmentType;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BillItem {
@@ -137,6 +160,7 @@ export interface Prescription {
   id: string;
   patientId: string;
   authorId: string;
+  authorName: string;
   medication: string;
   dosage: string;
   frequency: string;

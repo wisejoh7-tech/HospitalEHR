@@ -11,8 +11,10 @@ import {
   ArrowRight,
   FileSearch,
   Pill,
+  Tablets,
+  Banknote,
+  AlertTriangle,
   CheckCircle2,
-  Fingerprint,
   Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,7 +30,14 @@ export default function Dashboard() {
     activeCritical: 0,
     bedsAvailable: 0,
     pendingLabs: 0,
-    pendingRadiology: 0
+    pendingRadiology: 0,
+    totalRevenue: 0,
+    totalBilled: 0,
+    totalPending: 0,
+    totalDrugs: 0,
+    expiredCount: 0,
+    stockOutCount: 0,
+    stockInCount: 0
   });
 
   const [recentAdmissions, setRecentAdmissions] = useState<Patient[]>([]);
@@ -53,18 +62,36 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patients, wards, investigations, logs, allStaff, inventory] = await Promise.all([
+        const [patients, wards, investigations, logs, allStaff, inventory, bills] = await Promise.all([
           apiService.getPatients(),
           apiService.getWards(),
           apiService.getInvestigations({ status: 'pending' }),
           apiService.getLogs(),
           apiService.getStaff(),
-          apiService.getInventory()
+          apiService.getInventory(),
+          apiService.getBills()
         ]);
         
         const active = patients.filter(p => p.status === 'inpatient');
         setRecentAdmissions(patients.slice(0, 5));
         setActivityLogs(logs.slice(0, 6));
+
+        // Financials
+        const revenue = bills
+          .filter(b => b.status === 'paid')
+          .reduce((sum, b) => sum + b.totalAmount, 0);
+        
+        const totalBilled = bills.reduce((sum, b) => sum + b.totalAmount, 0);
+        const totalPending = bills
+          .filter(b => b.status === 'pending')
+          .reduce((sum, b) => sum + b.totalAmount, 0);
+
+        // Inventory Metrics
+        const now = new Date();
+        const totalStock = inventory.reduce((sum, item) => sum + item.stockLevel, 0);
+        const expired = inventory.filter(item => item.expiryDate && new Date(item.expiryDate) < now).length;
+        const stockOut = inventory.filter(item => item.stockLevel === 0).length;
+        const stockIn = inventory.filter(item => item.stockLevel > 0).length;
 
         // Inventory Alerts
         const alerts = inventory.filter((item: any) => {
@@ -94,7 +121,14 @@ export default function Dashboard() {
           bedsAvailable: totalBeds - occupiedBeds,
           occupancyRate: totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0,
           pendingLabs: investigations.filter(i => i.type === 'laboratory').length,
-          pendingRadiology: investigations.filter(i => i.type === 'radiology').length
+          pendingRadiology: investigations.filter(i => i.type === 'radiology').length,
+          totalRevenue: revenue,
+          totalBilled: totalBilled,
+          totalPending: totalPending,
+          totalDrugs: totalStock,
+          expiredCount: expired,
+          stockOutCount: stockOut,
+          stockInCount: stockIn
         });
       } catch (err) {
         console.error(err);
@@ -113,6 +147,13 @@ export default function Dashboard() {
     { label: 'Beds Available', value: stats.bedsAvailable, icon: BedIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
+  const adminStats = [
+    { label: 'Total Revenue', value: `₦${stats.totalRevenue.toLocaleString()}`, icon: Banknote, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total Billed', value: `₦${stats.totalBilled.toLocaleString()}`, icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Outstanding', value: `₦${stats.totalPending.toLocaleString()}`, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
+    { label: 'Expired Drugs', value: stats.expiredCount, icon: AlertTriangle, color: 'text-orange-600', bg: 'bg-orange-50' },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Welcome Section */}
@@ -125,13 +166,18 @@ export default function Dashboard() {
              profile?.role === 'lab' || profile?.role === 'radiology' ? 'Diagnostic Center' :
              profile?.role === 'record' ? 'Patient Records' : 'Facility Overview'}
           </h1>
-          <p className="text-gray-500 font-medium tracking-tight">Real-time health monitoring and facility occupancy.</p>
+          <div className="flex items-center gap-2">
+            <p className="text-gray-500 font-medium tracking-tight">Real-time health monitoring and facility occupancy.</p>
+            {profile?.role === 'admin' && (
+              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-full">Finance + Inventory Active</span>
+            )}
+          </div>
         </div>
       </section>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, i) => (
+        {(profile?.role === 'admin' ? adminStats : statCards).map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -150,9 +196,50 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {profile?.role === 'admin' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+             <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <Tablets size={24} />
+             </div>
+             <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Total Drug Units</p>
+                <p className="text-xl font-black text-gray-900">{stats.totalDrugs.toLocaleString()}</p>
+             </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+             <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                <Pill size={24} />
+             </div>
+             <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Items In Stock</p>
+                <p className="text-xl font-black text-gray-900">{stats.stockInCount}</p>
+             </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+             <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+                <AlertCircle size={24} />
+             </div>
+             <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Out of Stock</p>
+                <p className="text-xl font-black text-gray-900">{stats.stockOutCount}</p>
+             </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+             <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                <Users size={24} />
+             </div>
+             <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Active Inpatients</p>
+                <p className="text-xl font-black text-gray-900">{stats.totalPatients}</p>
+             </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Inventory Alerts (Doctor & Admin) */}
-        {(profile?.role === 'doctor' || profile?.role === 'admin') && (
+        {/* Inventory Alerts (Doctor Only) */}
+        {profile?.role === 'doctor' && (
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-lg text-gray-900">Pharmacy Alerts</h2>

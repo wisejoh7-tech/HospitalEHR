@@ -17,7 +17,10 @@ import {
   CalendarDays,
   Pill,
   Banknote,
-  Activity
+  Activity,
+  GraduationCap,
+  FlaskConical,
+  BookOpenText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../lib/firebase';
@@ -34,12 +37,16 @@ export default function Layout() {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['admin', 'doctor', 'pharmacy_admin'] },
-    { icon: Bed, label: 'Wards', path: '/wards', roles: ['admin', 'record', 'doctor', 'nurse'] },
+    { icon: Bed, label: 'Wards', path: '/wards', roles: ['admin', 'doctor', 'nurse'] },
     { icon: Activity, label: 'Vitals Record', path: '/vitals-record', roles: ['admin', 'nurse'] },
-    { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology'] },
-    { icon: Microscope, label: 'Investigations', path: '/investigations', roles: ['admin', 'doctor', 'nurse', 'lab', 'radiology'] },
-    { icon: Pill, label: 'Pharmacy', path: '/pharmacy', roles: ['admin', 'doctor', 'pharmacy', 'pharmacy_admin'] },
-    { icon: ClipboardList, label: 'Billing', path: '/billing', roles: ['admin', 'record', 'doctor'] },
+    { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer'] },
+    { icon: CalendarDays, label: 'Appointments', path: '/appointments', roles: ['admin', 'doctor', 'record'] },
+    { icon: Microscope, label: 'Investigations', path: '/investigations', roles: ['admin', 'doctor', 'nurse', 'lab', 'radiology', 'scientist', 'radiographer'] },
+    { icon: Pill, label: 'Pharmacy', path: '/pharmacy', roles: ['doctor', 'pharmacy', 'pharmacy_admin'] },
+    { icon: BookOpenText, label: 'Academic Rounds', path: '/academic-rounds', roles: ['admin', 'doctor'] },
+    { icon: GraduationCap, label: 'Medical Education', path: '/medical-education', roles: ['admin', 'doctor'] },
+    { icon: FlaskConical, label: 'Clinical Research', path: '/clinical-research', roles: ['admin', 'doctor'] },
+    { icon: ClipboardList, label: 'Billing', path: '/billing', roles: ['admin', 'doctor'] },
     { icon: Banknote, label: 'Revenue Config', path: '/revenue', roles: ['admin'] },
     { icon: ClipboardList, label: 'Records', path: '/records', roles: ['admin', 'record'] },
     { icon: Settings, label: 'Staff Management', path: '/staff', roles: ['admin', 'pharmacy_admin'] },
@@ -60,8 +67,8 @@ export default function Layout() {
               <Hospital size={24} />
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-tight">CaseNotes</h1>
-              <p className="text-xs text-gray-500 font-medium">HIMS v2.4</p>
+              <h1 className="font-bold text-lg leading-tight">VIVO</h1>
+              <p className="text-xs text-gray-500 font-medium">Teaching Hospital v2.5</p>
             </div>
           </div>
         </div>

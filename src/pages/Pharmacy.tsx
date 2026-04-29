@@ -68,10 +68,10 @@ export default function Pharmacy() {
     }
   };
 
-  const handleDispense = async (rxId: string) => {
+  const handleStatusUpdate = async (rxId: string, status: string) => {
     try {
-      await apiService.updatePrescriptionStatus(rxId, 'dispensed');
-      setPrescriptions(prev => prev.map(rx => rx.id === rxId ? { ...rx, status: 'dispensed' } : rx));
+      await apiService.updatePrescriptionStatus(rxId, status);
+      setPrescriptions(prev => prev.map(rx => rx.id === rxId ? { ...rx, status: status as any } : rx));
     } catch (err) {
       console.error(err);
     }
@@ -232,7 +232,6 @@ export default function Pharmacy() {
               transition={{ delay: i * 0.05 }}
               className="p-6 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:border-orange-200 transition-all"
             >
-              {/* Rx Item Content */}
               <div className="flex items-center gap-6">
                 <div className={cn(
                   "p-5 rounded-3xl shrink-0",
@@ -260,27 +259,53 @@ export default function Pharmacy() {
               </div>
 
               <div className="flex flex-col items-end gap-3 shrink-0">
-                 <div className={cn(
-                   "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
-                   rx.status === 'active' ? "bg-amber-50 text-amber-600" : 
-                   rx.status === 'dispensed' ? "bg-blue-50 text-blue-600" : 
-                   rx.status === 'discontinued' ? "bg-red-50 text-red-600" :
-                   "bg-green-50 text-green-600"
-                 )}>
-                    {rx.status === 'active' ? <Clock size={12} /> : 
-                     rx.status === 'discontinued' ? <AlertCircle size={12} /> :
-                     <CheckCircle2 size={12} />}
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1 mb-1">Status</span>
+                  <div className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border shadow-sm",
+                    rx.status === 'active' ? "bg-amber-50 border-amber-100 text-amber-600" : 
+                    rx.status === 'dispensed' ? "bg-blue-50 border-blue-100 text-blue-600" : 
+                    rx.status === 'discontinued' ? "bg-red-50 border-red-100 text-red-600" :
+                    "bg-emerald-50 border-emerald-100 text-emerald-600"
+                  )}>
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full animate-pulse",
+                      rx.status === 'active' ? "bg-amber-500" : 
+                      rx.status === 'dispensed' ? "bg-blue-500" : 
+                      rx.status === 'discontinued' ? "bg-red-500" :
+                      "bg-emerald-500"
+                    )} />
                     {rx.status}
-                 </div>
+                  </div>
+                </div>
 
-                 {rx.status === 'active' && (profile?.role === 'pharmacy' || profile?.role === 'admin') && (
-                   <button
-                     onClick={() => handleDispense(rx.id)}
-                     className="flex items-center gap-2 bg-gray-900 text-white px-6 py-2.5 rounded-2xl text-xs font-black shadow-lg shadow-gray-100 hover:scale-105 active:scale-95 transition-all"
-                   >
-                     <PackageCheck size={16} /> Mark as Dispensed
-                   </button>
-                 )}
+                <div className="flex items-center gap-2">
+                  {rx.status === 'active' && (profile?.role === 'pharmacy' || profile?.role === 'admin') && (
+                    <>
+                      <button
+                        onClick={() => handleStatusUpdate(rx.id, 'dispensed')}
+                        className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
+                      >
+                        <PackageCheck size={14} /> Dispense
+                      </button>
+                      <button
+                        onClick={() => handleStatusUpdate(rx.id, 'discontinued')}
+                        className="p-2.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
+                        title="Discontinue"
+                      >
+                        <AlertCircle size={18} />
+                      </button>
+                    </>
+                  )}
+                  {rx.status === 'dispensed' && (profile?.role === 'pharmacy' || profile?.role === 'admin') && (
+                    <button
+                      onClick={() => handleStatusUpdate(rx.id, 'completed')}
+                      className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 transition-all uppercase tracking-widest"
+                    >
+                      <CheckCircle2 size={14} /> Complete
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           ))
@@ -376,7 +401,7 @@ export default function Pharmacy() {
                           {isOutOfStock ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock'}
                         </div>
                       </td>
-      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right">
                          {isPharmacyAdmin && <button className="text-[10px] font-black text-blue-600 uppercase hover:underline">Edit Stock</button>}
                       </td>
                     </tr>
@@ -395,7 +420,6 @@ export default function Pharmacy() {
         )}
       </div>
 
-      {/* Add Inventory Modal */}
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -420,14 +444,14 @@ export default function Pharmacy() {
 
                 <form onSubmit={handleAddItem} className="space-y-6">
                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Medication Name</label>
-                      <input 
-                        required
-                        className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold" 
-                        placeholder="e.g. Paracetamol"
-                        value={newItem.name}
-                        onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-                      />
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Medication Name</label>
+                       <input 
+                         required
+                         className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold" 
+                         placeholder="e.g. Paracetamol"
+                         value={newItem.name}
+                         onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                       />
                    </div>
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
