@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Metadata for authenticated hospital staff",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["doctor", "nurse", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role", "createdAt"]
+    },
+    "Ward": {
+      "title": "Ward",
+      "description": "A hospital ward containing beds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "capacity": { "type": "integer" }
+      },
+      "required": ["id", "name", "capacity"]
+    },
+    "Bed": {
+      "title": "Bed",
+      "description": "A single bed in a ward",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "wardId": { "type": "string" },
+        "status": { "type": "string", "enum": ["vacant", "occupied", "maintenance"] },
+        "patientId": { "type": "string" }
+      },
+      "required": ["id", "wardId", "status"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient electronic health record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "gender": { "type": "string" },
+        "dob": { "type": "string", "format": "date" },
+        "bloodGroup": { "type": "string" },
+        "allergies": { "type": "array", "items": { "type": "string" } },
+        "admissionDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["inpaitient", "outpatient", "discharged"] },
+        "wardId": { "type": "string" },
+        "bedId": { "type": "string" }
+      },
+      "required": ["id", "name", "gender", "dob", "status"]
+    },
+    "ClinicalNote": {
+      "title": "Clinical Note",
+      "description": "Medical notes added by doctors or nurses",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "type": { "type": "string", "enum": ["physician", "nursing", "vitals"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "patientId", "authorId", "type", "content", "createdAt"]
+    },
+    "Prescription": {
+      "title": "Prescription",
+      "description": "Medications prescribed to a patient",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "medication": { "type": "string" },
+        "dosage": { "type": "string" },
+        "frequency": { "type": "string" },
+        "duration": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "discontinued", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "patientId", "authorId", "medication", "dosage", "frequency", "status", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Log of actions for compliance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "resourceId": { "type": "string" },
+        "resourceType": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{uid}": { "schema": "User", "description": "Staff members" },
+    "wards/{wardId}": { "schema": "Ward", "description": "Hospital wards" },
+    "wards/{wardId}/beds/{bedId}": { "schema": "Bed", "description": "Beds in a ward" },
+    "patients/{patientId}": { "schema": "Patient", "description": "Patient records" },
+    "patients/{patientId}/clinical_notes/{noteId}": { "schema": "ClinicalNote", "description": "Clinical notes" },
+    "patients/{patientId}/prescriptions/{rxId}": { "schema": "Prescription", "description": "Medications" },
+    "audit_logs/{logId}": { "schema": "AuditLog", "description": "System audit logs" }
+  }
+}

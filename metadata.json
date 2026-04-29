@@ -1,0 +1,6 @@
+{
+  "name": "CaseNotes EHR System",
+  "description": "A professional Health Information Management System (EHR) featuring ward/bed occupancy, patient clinical notes, prescriptions, and role-based access control.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}
