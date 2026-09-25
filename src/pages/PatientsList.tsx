@@ -498,7 +498,7 @@ export default function PatientsList() {
                {biometricMode === 'fingerprint' && !scanning && !scanResult && (
                  <div className="mb-8 px-4"><input type="text" placeholder="Simulated Fingerprint ID" value={fingerprintInput} onChange={(e) => setFingerprintInput(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100 font-bold text-center" /></div>
                )}
-               {scanResult && <div className={cn("p-4 rounded-xl text-xs font-black uppercase mb-8", scanResult.includes('Found') || scanResult.includes('Match') ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")}>{scanResult}</div>}
+               {scanResult && <div className={cn("p-4 rounded-xl text-xs font-black uppercase mb-8", scanResult.includes('Verified') || scanResult.includes('Found') || scanResult.includes('Match') ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")}>{scanResult}</div>}
                <div className="flex gap-4">
                   {!scanning && (
                     <><button onClick={() => { stopCamera(); setShowBiometricModal(false); }} className="flex-1 py-4 text-sm font-black text-gray-400">Cancel</button>

@@ -36,7 +36,7 @@ export default function Layout() {
   };
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['admin', 'doctor', 'pharmacy_admin'] },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'doctor', 'pharmacy_admin'] },
     { icon: Bed, label: 'Wards', path: '/wards', roles: ['admin', 'doctor', 'nurse'] },
     { icon: Activity, label: 'Vitals Record', path: '/vitals-record', roles: ['admin', 'nurse'] },
     { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer'] },
@@ -46,10 +46,10 @@ export default function Layout() {
     { icon: BookOpenText, label: 'Academic Rounds', path: '/academic-rounds', roles: ['admin', 'doctor'] },
     { icon: GraduationCap, label: 'Medical Education', path: '/medical-education', roles: ['admin', 'doctor'] },
     { icon: FlaskConical, label: 'Clinical Research', path: '/clinical-research', roles: ['admin', 'doctor'] },
-    { icon: ClipboardList, label: 'Billing', path: '/billing', roles: ['admin', 'doctor'] },
-    { icon: Banknote, label: 'Revenue Config', path: '/revenue', roles: ['admin'] },
+    { icon: Banknote, label: 'Billing', path: '/billing', roles: ['admin', 'doctor'] },
+    { icon: Settings, label: 'Revenue Config', path: '/revenue', roles: ['admin'] },
     { icon: ClipboardList, label: 'Records', path: '/records', roles: ['admin', 'record'] },
-    { icon: Settings, label: 'Staff Management', path: '/staff', roles: ['admin', 'pharmacy_admin'] },
+    { icon: Users, label: 'Staff Management', path: '/staff', roles: ['admin', 'pharmacy_admin'] },
     { icon: Activity, label: 'System Logs', path: '/logs', roles: ['admin'] },
   ];
 

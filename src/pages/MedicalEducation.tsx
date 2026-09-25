@@ -92,7 +92,7 @@ export default function MedicalEducation() {
   });
 
   return (
-    <div className="space-y-8 animate-in mt-20">
+    <div className="space-y-8 animate-in">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-purple-600 rounded-2xl text-white shadow-lg shadow-purple-200">
