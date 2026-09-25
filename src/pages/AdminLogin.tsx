@@ -82,7 +82,7 @@ export default function AdminLogin() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="080XXXXXXXX"
+              placeholder="08000000000"
               className="w-full px-6 py-5 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-gray-900 outline-none transition-all"
               required
             />
