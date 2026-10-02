@@ -269,6 +269,16 @@ export const apiService = {
     return res.json();
   },
 
+  async updateInventoryItem(id: string, data: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/inventory/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update inventory item');
+    return res.json();
+  },
+
   async getPrescriptions(query?: { status?: string }): Promise<any[]> {
     const params = new URLSearchParams(query as any).toString();
     const res = await fetch(`${API_BASE}/prescriptions?${params}`);

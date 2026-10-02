@@ -29,6 +29,8 @@ export default function Pharmacy() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [newItem, setNewItem] = useState({ name: '', category: '', stockLevel: '', unit: '', description: '', expiryDate: '', price: '' });
 
   const fetchData = async () => {
@@ -68,6 +70,26 @@ export default function Pharmacy() {
     }
   };
 
+  const handleEditItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    try {
+      await apiService.updateInventoryItem(editingItem.id, {
+        name: editingItem.name,
+        category: editingItem.category,
+        stockLevel: parseInt(editingItem.stockLevel) || 0,
+        unit: editingItem.unit,
+        price: parseFloat(editingItem.price) || 0,
+        expiryDate: editingItem.expiryDate ? editingItem.expiryDate.split('T')[0] : null
+      });
+      setShowEditModal(false);
+      setEditingItem(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleStatusUpdate = async (rxId: string, status: string) => {
     try {
       await apiService.updatePrescriptionStatus(rxId, status);
@@ -88,9 +110,10 @@ export default function Pharmacy() {
     return matchesSearch && matchesDate;
   });
 
+  const todayStr = new Date().toISOString().split('T')[0];
   const stats = {
     active: prescriptions.filter(rx => rx.status === 'active').length,
-    dispensedToday: prescriptions.filter(rx => rx.status === 'dispensed').length, // Should ideally be filtered by date
+    dispensedToday: prescriptions.filter(rx => (rx.status === 'dispensed' || rx.status === 'completed') && rx.createdAt?.toString().startsWith(todayStr)).length || prescriptions.filter(rx => rx.status === 'dispensed').length,
     pending: prescriptions.filter(rx => rx.status === 'active').length
   };
 
@@ -361,7 +384,7 @@ export default function Pharmacy() {
                         {isPharmacyAdmin ? (
                           <input 
                             type="number"
-                            className="bg-transparent border-none font-black text-sm text-gray-900 w-20 outline-none focus:ring-0"
+                            className="bg-transparent border-none font-black text-sm text-gray-900 w-20 outline-none focus:ring-2 focus:ring-orange-100 rounded px-1"
                             value={item.price}
                             onChange={(e) => {
                               const newPrice = parseFloat(e.target.value) || 0;
@@ -369,7 +392,7 @@ export default function Pharmacy() {
                             }}
                             onBlur={async (e) => {
                               try {
-                                await apiService.addInventoryItem({ ...item, price: parseFloat(e.target.value) || 0 });
+                                await apiService.updateInventoryItem(item.id, { price: parseFloat(e.target.value) || 0 });
                               } catch (err) {
                                 console.error(err);
                               }
@@ -402,7 +425,20 @@ export default function Pharmacy() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                         {isPharmacyAdmin && <button className="text-[10px] font-black text-blue-600 uppercase hover:underline">Edit Stock</button>}
+                         {isPharmacyAdmin && (
+                           <button
+                             onClick={() => {
+                               setEditingItem({
+                                 ...item,
+                                 expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
+                               });
+                               setShowEditModal(true);
+                             }}
+                             className="text-[10px] font-black text-blue-600 uppercase hover:underline"
+                           >
+                             Edit Stock
+                           </button>
+                         )}
                       </td>
                     </tr>
                   );
@@ -419,6 +455,103 @@ export default function Pharmacy() {
           </div>
         )}
       </div>
+
+      {/* Edit Inventory Item Modal */}
+      <AnimatePresence>
+        {showEditModal && editingItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+             <motion.div
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setShowEditModal(false)}
+               className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+             />
+             <motion.div
+               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+               className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 overflow-hidden"
+             >
+                <div className="flex items-center gap-5 mb-8">
+                   <div className="p-4 bg-blue-50 text-blue-600 rounded-3xl">
+                      <PackageCheck size={32} />
+                   </div>
+                   <div>
+                     <h3 className="text-xl font-black text-gray-900">Edit Inventory Item</h3>
+                     <p className="text-xs font-bold text-gray-400">Update medication details & stock</p>
+                   </div>
+                </div>
+
+                <form onSubmit={handleEditItem} className="space-y-6">
+                   <div className="space-y-2">
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Medication Name</label>
+                       <input
+                         required
+                         className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                         value={editingItem.name}
+                         onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
+                       />
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</label>
+                        <input
+                          required
+                          className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                          value={editingItem.category}
+                          onChange={(e) => setEditingItem({...editingItem, category: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Stock Level</label>
+                        <input
+                          type="number"
+                          required
+                          className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                          value={editingItem.stockLevel}
+                          onChange={(e) => setEditingItem({...editingItem, stockLevel: e.target.value})}
+                        />
+                      </div>
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Unit</label>
+                        <input
+                          required
+                          className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                          value={editingItem.unit}
+                          onChange={(e) => setEditingItem({...editingItem, unit: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Price (₦)</label>
+                        <input
+                          type="number"
+                          required
+                          className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                          value={editingItem.price}
+                          onChange={(e) => setEditingItem({...editingItem, price: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Expiry Date</label>
+                        <input
+                          type="date"
+                          required
+                          className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                          value={editingItem.expiryDate}
+                          onChange={(e) => setEditingItem({...editingItem, expiryDate: e.target.value})}
+                        />
+                      </div>
+                   </div>
+                   <div className="flex gap-4 pt-4">
+                      <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-4 text-sm font-black text-gray-400">Cancel</button>
+                      <button type="submit" className="flex-1 py-4 bg-gray-900 text-white rounded-2xl text-sm font-black shadow-lg">Update Stock</button>
+                   </div>
+                </form>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showAddModal && (

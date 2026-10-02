@@ -765,12 +765,13 @@ async function startServer() {
 
   app.post('/api/inventory', async (req, res) => {
     try {
-      const { name, category, stockLevel, unit, description, expiryDate } = req.body;
+      const { name, category, stockLevel, unit, description, expiryDate, price } = req.body;
       const item = await prisma.inventory.create({
         data: { 
           name, 
           category, 
           stockLevel: parseInt(stockLevel) || 0, 
+          price: parseFloat(price) || 0,
           unit, 
           description,
           expiryDate: expiryDate ? new Date(expiryDate) : null
@@ -779,6 +780,28 @@ async function startServer() {
       res.status(201).json(item);
     } catch (error) {
       res.status(500).json({ error: 'Failed to add item to inventory' });
+    }
+  });
+
+  app.patch('/api/inventory/:id', async (req, res) => {
+    try {
+      const { name, category, stockLevel, unit, description, expiryDate, price } = req.body;
+      const item = await prisma.inventory.update({
+        where: { id: req.params.id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(category !== undefined && { category }),
+          ...(stockLevel !== undefined && { stockLevel: parseInt(stockLevel) }),
+          ...(price !== undefined && { price: parseFloat(price) }),
+          ...(unit !== undefined && { unit }),
+          ...(description !== undefined && { description }),
+          ...(expiryDate !== undefined && { expiryDate: expiryDate ? new Date(expiryDate) : null })
+        }
+      });
+      await logAction('system', 'Pharmacy', `Updated inventory item: ${item.name}`, item.id, 'Inventory');
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update inventory item' });
     }
   });
 
