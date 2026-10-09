@@ -111,27 +111,27 @@ export default function WardsOverview() {
   );
 
   return (
-    <div className="space-y-8">
-      <header className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-8">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 mb-1">Ward Management Terminal</h1>
-          <p className="text-gray-500 font-medium tracking-tight">Real-time floor layout and patient bed assignments.</p>
+          <h1 className="text-lg sm:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">Ward Management Terminal</h1>
+          <p className="text-xs sm:text-sm text-gray-500 font-medium tracking-tight">Real-time floor layout and patient bed assignments.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 shrink-0">
           {canManage && (
             <>
               <button 
                 onClick={() => setShowAddBedModal(true)}
                 disabled={!selectedWardId}
-                className="flex items-center gap-2 bg-blue-50 text-blue-600 px-5 py-2.5 rounded-xl text-xs font-black hover:bg-blue-100 disabled:opacity-50 transition-all"
+                className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black hover:bg-blue-100 disabled:opacity-50 transition-all"
               >
-                <PlusCircle size={16} /> Add Bed
+                <PlusCircle size={14} className="sm:w-4 sm:h-4" /> Add Bed
               </button>
               <button 
                 onClick={() => setShowAddWardModal(true)}
-                className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-gray-100 hover:scale-105 active:scale-95 transition-all"
+                className="flex items-center gap-1.5 bg-gray-900 text-white px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black shadow hover:scale-105 active:scale-95 transition-all"
               >
-                <PlusCircle size={16} /> Create Ward
+                <PlusCircle size={14} className="sm:w-4 sm:h-4" /> Create Ward
               </button>
             </>
           )}
@@ -139,41 +139,41 @@ export default function WardsOverview() {
       </header>
 
       {/* Occupancy Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Facility Capacity</p>
           <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-gray-900">{occupancyStats.totalBeds}</h3>
-            <span className="text-xs font-bold text-blue-500 mb-1">Total Beds</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{occupancyStats.totalBeds}</h3>
+            <span className="text-[10px] sm:text-xs font-bold text-blue-500 mb-0.5">Total Beds</span>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm border-l-4 border-l-blue-600">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm border-l-4 border-l-blue-600">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Occupancy</p>
           <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-gray-900">{occupancyStats.occupiedBeds}</h3>
-            <span className="text-xs font-bold text-gray-400 mb-1">Patients</span>
+            <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{occupancyStats.occupiedBeds}</h3>
+            <span className="text-[10px] sm:text-xs font-bold text-gray-400 mb-0.5">Patients</span>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilization Rate</p>
           <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-gray-900">
+            <h3 className="text-2xl sm:text-3xl font-black text-gray-900">
               {occupancyStats.totalBeds > 0 ? Math.round((occupancyStats.occupiedBeds / occupancyStats.totalBeds) * 100) : 0}%
             </h3>
-            <span className="text-xs font-bold text-green-500 mb-1">Live</span>
+            <span className="text-[10px] sm:text-xs font-bold text-green-500 mb-0.5">Live</span>
           </div>
         </div>
       </div>
 
       {/* Ward Tabs & Filters */}
-      <div className="flex flex-col md:flex-row gap-6 items-end justify-between">
-        <div className="flex flex-wrap gap-2 p-1 bg-gray-100 rounded-2xl w-fit">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-start sm:items-end justify-between">
+        <div className="flex flex-wrap gap-1.5 p-1 bg-gray-100 rounded-xl sm:rounded-2xl w-full sm:w-fit">
           {wards.map((ward) => (
             <button
               key={ward.id}
               onClick={() => setSelectedWardId(ward.id)}
               className={cn(
-                "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                "px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all",
                 selectedWardId === ward.id 
                   ? "bg-white text-blue-600 shadow-sm" 
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
@@ -184,13 +184,13 @@ export default function WardsOverview() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-1 bg-white p-1 rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm overflow-x-auto max-w-full">
            {(['all', 'vacant', 'occupied', 'maintenance'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={cn(
-                  "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  "px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
                   statusFilter === status
                     ? "bg-gray-900 text-white"
                     : "text-gray-400 hover:text-gray-600"
