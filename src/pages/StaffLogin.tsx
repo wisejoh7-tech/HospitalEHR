@@ -65,8 +65,11 @@ export default function StaffLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50"></div>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1200')` }}
+    >
+      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
       
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
