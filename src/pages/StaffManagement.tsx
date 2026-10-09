@@ -92,8 +92,10 @@ export default function StaffManagement() {
   const roles: UserRole[] = ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology'];
 
   const filteredStaff = staff.filter(user => {
-    return user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           user.role.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!user) return false;
+    const nameMatch = user.name ? user.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+    const roleMatch = user.role ? user.role.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+    return nameMatch || roleMatch;
   });
 
   if (!isAdmin) {
@@ -144,41 +146,30 @@ export default function StaffManagement() {
             transition={{ delay: i * 0.03 }}
             className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs hover:shadow-md hover:border-blue-200 transition-all group"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-base">
-                {user.name.charAt(0)}
+            <div className="flex items-start justify-between mb-6">
+              <div className="w-14 h-14 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xl">
+                {user.name?.charAt(0) || 'U'}
               </div>
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                  user.role === 'admin' ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                )}>
-                  {user.role}
-                </div>
-                {profile?.id !== user.id && user.phone !== '08000000000' && (
-                  <button
-                    onClick={() => handleDeleteStaff(user.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                    title="Remove Staff"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
+              <div className={cn(
+                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                user.role === 'admin' ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+              )}>
+                {user.role || 'N/A'}
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <h3 className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{user.name}</h3>
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 mt-0.5">
-                  <span>{user.phone || user.email}</span>
+                <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{user.name || 'Unnamed'}</h3>
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-400 mt-1">
+                  <span>{user.phone || user.email || 'No contact info'}</span>
                 </div>
               </div>
 
               <div className="pt-3 border-t border-gray-50 flex flex-col gap-1">
                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Assign Role</label>
                  <select 
-                   value={user.role}
+                   value={user.role || ''}
                    onChange={(e) => handleUpdateRole(user.id, e.target.value)}
                    className="w-full p-2 bg-gray-50 rounded-lg border-none text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100"
                  >
