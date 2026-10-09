@@ -102,9 +102,14 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[#F3F4F6] flex overflow-hidden">
       {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-3/5 bg-blue-600 p-12 items-center justify-center relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-700 rounded-full mix-blend-multiply filter blur-3xl opacity-70 -mr-32 -mt-32"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gold-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -ml-32 -mb-32"></div>
+      <div
+        className="hidden lg:flex lg:w-3/5 p-12 items-center justify-center relative overflow-hidden bg-cover bg-center"
+        style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1200')` }}
+      >
+        {/* Dark/Blue semi-transparent gradient overlay for high contrast and modern look */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-950/90 via-blue-900/85 to-slate-900/90 backdrop-blur-[2px]"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full mix-blend-overlay filter blur-3xl -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-500/20 rounded-full mix-blend-overlay filter blur-3xl -ml-32 -mb-32"></div>
         
         <div className="relative z-10 text-white text-center max-w-lg">
           <motion.div
@@ -113,7 +118,7 @@ export default function Login() {
              transition={{ duration: 0.5 }}
              className="mb-8 flex justify-center"
           >
-            <div className="bg-white p-6 rounded-3xl shadow-2xl">
+            <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl shadow-2xl border border-white/30">
               <Hospital size={80} className="text-blue-600" />
             </div>
           </motion.div>
@@ -121,7 +126,7 @@ export default function Login() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-5xl font-black mb-4 tracking-tight"
+            className="text-5xl font-black mb-4 tracking-tight drop-shadow-md"
           >
             VIVO®
           </motion.h1>
@@ -129,7 +134,7 @@ export default function Login() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-xl text-blue-50 font-medium"
+            className="text-xl text-blue-100 font-medium drop-shadow-sm"
           >
             Teaching Hospital Advanced Healthcare Ecosystem.
           </motion.p>

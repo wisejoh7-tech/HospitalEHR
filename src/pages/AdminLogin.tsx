@@ -49,11 +49,11 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden opacity-20 pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl -mr-32 -mt-32 animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl -ml-32 -mb-32 animate-pulse"></div>
-      </div>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: `url('https://images.unsplash.com/photo-1587350853328-4745f41d915a?auto=format&fit=crop&q=80&w=1200')` }}
+    >
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm pointer-events-none"></div>
 
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
