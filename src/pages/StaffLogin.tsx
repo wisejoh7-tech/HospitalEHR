@@ -76,12 +76,12 @@ export default function StaffLogin() {
         animate={{ scale: 1, opacity: 1 }}
         className="w-full max-w-lg bg-white rounded-[2rem] shadow-xl p-10 relative z-10 border border-gray-100"
       >
-        <div className="text-center mb-10">
-          <div className="inline-flex p-4 bg-blue-600 rounded-2xl text-white mb-6 shadow-lg shadow-blue-100">
-            <Hospital size={40} />
+        <div className="text-center mb-6">
+          <div className="inline-flex p-3 bg-blue-600 rounded-xl text-white mb-4 shadow-md shadow-blue-100">
+            <Hospital size={28} />
           </div>
-          <h1 className="text-3xl font-black text-gray-900 mb-2">Hospital Portal</h1>
-          <p className="text-gray-500 font-medium tracking-tight">Clinical & Administrative Services</p>
+          <h1 className="text-xl font-extrabold text-gray-900 mb-1">Hospital Portal</h1>
+          <p className="text-xs text-gray-500 font-medium tracking-tight">Clinical & Administrative Services</p>
         </div>
 
         {error && (

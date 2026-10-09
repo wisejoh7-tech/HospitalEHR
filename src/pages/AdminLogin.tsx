@@ -60,12 +60,12 @@ export default function AdminLogin() {
         animate={{ y: 0, opacity: 1 }}
         className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-10 relative z-10"
       >
-        <div className="text-center mb-10">
-          <div className="inline-flex p-4 bg-gray-900 rounded-2xl text-white mb-6">
-            <ShieldCheck size={40} />
+        <div className="text-center mb-6">
+          <div className="inline-flex p-3 bg-gray-900 rounded-xl text-white mb-4">
+            <ShieldCheck size={28} />
           </div>
-          <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight uppercase italic">Admin Console</h1>
-          <p className="text-gray-500 font-medium">Authorized Personnel Only • Secure Access</p>
+          <h1 className="text-xl font-black text-gray-900 mb-1 tracking-tight uppercase italic">Admin Console</h1>
+          <p className="text-xs text-gray-500 font-medium">Authorized Personnel Only • Secure Access</p>
         </div>
 
         {error && (
