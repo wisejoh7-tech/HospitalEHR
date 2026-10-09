@@ -92,8 +92,10 @@ export default function StaffManagement() {
   const roles: UserRole[] = ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology'];
 
   const filteredStaff = staff.filter(user => {
-    return user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           user.role.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!user) return false;
+    const nameMatch = user.name ? user.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+    const roleMatch = user.role ? user.role.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+    return nameMatch || roleMatch;
   });
 
   if (!isAdmin) {
@@ -146,13 +148,13 @@ export default function StaffManagement() {
           >
             <div className="flex items-start justify-between mb-6">
               <div className="w-14 h-14 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xl">
-                {user.name.charAt(0)}
+                {user.name?.charAt(0) || 'U'}
               </div>
               <div className={cn(
                 "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
                 user.role === 'admin' ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
               )}>
-                {user.role}
+                {user.role || 'N/A'}
               </div>
               {profile?.id !== user.id && user.phone !== '08000000000' && (
                 <button 
@@ -167,16 +169,16 @@ export default function StaffManagement() {
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{user.name}</h3>
+                <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{user.name || 'Unnamed'}</h3>
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-400 mt-1">
-                  <span>{user.phone || user.email}</span>
+                  <span>{user.phone || user.email || 'No contact info'}</span>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-gray-50 flex flex-col gap-2">
                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assign Role</label>
                  <select 
-                   value={user.role}
+                   value={user.role || ''}
                    onChange={(e) => handleUpdateRole(user.id, e.target.value)}
                    className="w-full p-3 bg-gray-50 rounded-xl border-none text-xs font-black outline-none focus:ring-2 focus:ring-blue-100"
                  >
