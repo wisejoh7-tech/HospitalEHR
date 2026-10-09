@@ -206,26 +206,33 @@ export const apiService = {
     return handleResponse<any[]>(res, 'Failed to fetch logs');
   },
 
-  async updateUserRole(id: string, role: string): Promise<any> {
+  async updateUserRole(id: string, role: string, adminRole?: string): Promise<any> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (adminRole) headers['x-user-role'] = adminRole;
     const res = await fetch(`${API_BASE}/users/${id}/role`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ role }),
     });
     return handleResponse<any>(res, 'Failed to update role');
   },
 
-  async deleteUser(id: string): Promise<any> {
+  async deleteUser(id: string, adminRole?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (adminRole) headers['x-user-role'] = adminRole;
     const res = await fetch(`${API_BASE}/users/${id}`, {
       method: 'DELETE',
+      headers,
     });
     return handleResponse<any>(res, 'Failed to delete user');
   },
 
-  async registerStaff(data: any): Promise<any> {
+  async registerStaff(data: any, adminRole?: string): Promise<any> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (adminRole) headers['x-user-role'] = adminRole;
     const res = await fetch(`${API_BASE}/auth/staff`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(data),
     });
     return handleResponse<any>(res, 'Failed to register staff');
