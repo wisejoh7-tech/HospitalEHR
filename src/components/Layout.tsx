@@ -35,7 +35,7 @@ export default function Layout() {
 
   const handleLogout = async () => {
     logout();
-    navigate('/login');
+    navigate('/staff/login');
   };
 
   const navItems = [
