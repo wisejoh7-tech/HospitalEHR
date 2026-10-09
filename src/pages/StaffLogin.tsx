@@ -138,18 +138,12 @@ export default function StaffLogin() {
           </button>
         </form>
 
-        <div className="mt-8 sm:mt-12 flex items-center justify-between text-center gap-2">
+        <div className="mt-8 sm:mt-12 flex items-center justify-center text-center">
             <button 
               onClick={() => navigate('/admin/login')}
               className="text-[10px] font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
             >
               Admin Portal
-            </button>
-            <button 
-              onClick={() => navigate('/login')}
-              className="text-[10px] font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
-            >
-              Account Management
             </button>
         </div>
       </motion.div>
