@@ -84,7 +84,7 @@ export default function Appointments() {
         apiService.getUsers()
       ]);
       setPatients(plist);
-      setDoctors(ulist.filter(u => u.role === 'doctor'));
+      setDoctors(ulist.filter(u => u && u.role === 'doctor'));
     };
     loadData();
   }, []);

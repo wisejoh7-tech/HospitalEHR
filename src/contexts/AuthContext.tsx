@@ -31,12 +31,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for manual session
     const saved = localStorage.getItem('hospital_staff_session');
     if (saved) {
-       setProfile(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.role) {
+          setProfile(parsed);
+        } else {
+          localStorage.removeItem('hospital_staff_session');
+        }
+      } catch {
+        localStorage.removeItem('hospital_staff_session');
+      }
     }
     setLoading(false);
   }, []);
 
   const loginManual = (staffProfile: UserProfile) => {
+    if (!staffProfile || !staffProfile.role) {
+      console.error('Cannot login with invalid or role-less profile:', staffProfile);
+      return;
+    }
     setProfile(staffProfile);
     localStorage.setItem('hospital_staff_session', JSON.stringify(staffProfile));
   };

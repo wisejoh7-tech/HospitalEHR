@@ -93,7 +93,7 @@ export default function Investigations() {
         </div>
         
         <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl w-fit">
-          {(!profile || (profile.role !== 'lab' && profile.role !== 'radiology')) && (
+          {(!profile?.role || (profile.role !== 'lab' && profile.role !== 'radiology')) && (
             <button
               onClick={() => setFilterType('all')}
               className={cn(
@@ -104,7 +104,7 @@ export default function Investigations() {
               all
             </button>
           )}
-          {(!profile || profile.role !== 'radiology') && (
+          {(!profile?.role || profile.role !== 'radiology') && (
             <button
               onClick={() => setFilterType('laboratory')}
               className={cn(
@@ -115,7 +115,7 @@ export default function Investigations() {
               laboratory
             </button>
           )}
-          {(!profile || profile.role !== 'lab') && (
+          {(!profile?.role || profile.role !== 'lab') && (
             <button
               onClick={() => setFilterType('radiology')}
               className={cn(
