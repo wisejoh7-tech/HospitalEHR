@@ -116,17 +116,17 @@ export default function Login() {
              initial={{ scale: 0.8, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ duration: 0.5 }}
-             className="mb-8 flex justify-center"
+             className="mb-6 flex justify-center"
           >
-            <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl shadow-2xl border border-white/30">
-              <Hospital size={80} className="text-blue-600" />
+            <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-white/30">
+              <Hospital size={44} className="text-blue-600" />
             </div>
           </motion.div>
           <motion.h1 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-5xl font-black mb-4 tracking-tight drop-shadow-md"
+            className="text-3xl font-black mb-2 tracking-tight drop-shadow-md"
           >
             VIVO®
           </motion.h1>
@@ -134,7 +134,7 @@ export default function Login() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-xl text-blue-100 font-medium drop-shadow-sm"
+            className="text-sm text-blue-100 font-medium drop-shadow-sm"
           >
             Teaching Hospital Advanced Healthcare Ecosystem.
           </motion.p>
@@ -227,7 +227,7 @@ export default function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 transition-colors bg-white rounded-lg shadow-sm border border-gray-100"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
             </div>
