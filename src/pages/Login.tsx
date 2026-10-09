@@ -1,6 +1,6 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import StaffLogin from './StaffLogin';
 
 export default function Login() {
-  return <Navigate to="/staff/login" replace />;
+  return <StaffLogin />;
 }

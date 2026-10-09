@@ -45,7 +45,7 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?
   }
 
   if (!profile) {
-    return <Navigate to="/staff/login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (roles && profile && !roles.includes(profile.role)) {
@@ -68,7 +68,7 @@ function RoleRedirect() {
     case 'record': 
     case 'doctor': return <Navigate to="/patients" replace />;
     case 'admin': return <Navigate to="/dashboard" replace />;
-    default: return <Navigate to="/staff/login" replace />;
+    default: return <Navigate to="/login" replace />;
   }
 }
 
@@ -79,8 +79,8 @@ export default function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/staff/login" element={<StaffLogin />} />
+            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+            <Route path="/staff/login" element={<Navigate to="/login" replace />} />
             
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/" element={<RoleRedirect />} />
@@ -93,7 +93,7 @@ export default function App() {
               <Route path="/patients/:id" element={<PatientDetails />} />
               <Route path="/investigations" element={<ProtectedRoute roles={['admin', 'doctor', 'nurse', 'lab', 'radiology']}><Investigations /></ProtectedRoute>} />
               <Route path="/pharmacy" element={<ProtectedRoute roles={['admin', 'doctor', 'pharmacy', 'pharmacy_admin']}><Pharmacy /></ProtectedRoute>} />
-              <Route path="/staff" element={<ProtectedRoute roles={['admin', 'pharmacy_admin']}><StaffManagement /></ProtectedRoute>} />
+              <Route path="/staff" element={<ProtectedRoute roles={['admin']}><StaffManagement /></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Billing /></ProtectedRoute>} />
               <Route path="/appointments" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Appointments /></ProtectedRoute>} />
               <Route path="/academic-rounds" element={<ProtectedRoute roles={['admin', 'doctor']}><AcademicRounds /></ProtectedRoute>} />
@@ -112,4 +112,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

@@ -2,12 +2,30 @@ import { Patient, Ward, ClinicalNote, Prescription, Investigation, VitalSign, Be
 
 const API_BASE = '/api';
 
+async function handleResponse<T>(res: Response, defaultError = 'Request failed'): Promise<T> {
+  let body: any = null;
+  const text = await res.text();
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = { error: text };
+    }
+  }
+
+  if (!res.ok) {
+    const errorMessage = body?.error || body?.message || defaultError;
+    throw new Error(errorMessage);
+  }
+
+  return body as T;
+}
+
 export const apiService = {
   async getAppointments(query?: { patientId?: string }): Promise<Appointment[]> {
     const params = new URLSearchParams(query as any).toString();
     const res = await fetch(`${API_BASE}/appointments?${params}`);
-    if (!res.ok) throw new Error('Failed to fetch appointments');
-    return res.json();
+    return handleResponse<Appointment[]>(res, 'Failed to fetch appointments');
   },
 
   async createAppointment(data: Partial<Appointment>): Promise<Appointment> {
@@ -16,8 +34,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to create appointment');
-    return res.json();
+    return handleResponse<Appointment>(res, 'Failed to create appointment');
   },
 
   async updateAppointment(id: string, data: Partial<Appointment>): Promise<Appointment> {
@@ -26,27 +43,24 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to update appointment');
-    return res.json();
+    return handleResponse<Appointment>(res, 'Failed to update appointment');
   },
 
   async deleteAppointment(id: string): Promise<void> {
     const res = await fetch(`${API_BASE}/appointments/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Failed to delete appointment');
+    await handleResponse<void>(res, 'Failed to delete appointment');
   },
 
   async getWards(): Promise<Ward[]> {
     const res = await fetch(`${API_BASE}/wards`);
-    if (!res.ok) throw new Error('Failed to fetch wards');
-    return res.json();
+    return handleResponse<Ward[]>(res, 'Failed to fetch wards');
   },
 
   async getPatients(): Promise<Patient[]> {
     const res = await fetch(`${API_BASE}/patients`);
-    if (!res.ok) throw new Error('Failed to fetch patients');
-    return res.json();
+    return handleResponse<Patient[]>(res, 'Failed to fetch patients');
   },
 
   async registerPatient(data: Partial<Patient>): Promise<Patient> {
@@ -55,17 +69,12 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Registration failed');
-    }
-    return res.json();
+    return handleResponse<Patient>(res, 'Registration failed');
   },
 
   async getPatientById(id: string): Promise<Patient & { notes: ClinicalNote[], prescriptions: Prescription[], investigations: Investigation[], vitals: VitalSign[] }> {
     const res = await fetch(`${API_BASE}/patients/${id}`);
-    if (!res.ok) throw new Error('Failed to fetch patient details');
-    return res.json();
+    return handleResponse<Patient & { notes: ClinicalNote[], prescriptions: Prescription[], investigations: Investigation[], vitals: VitalSign[] }>(res, 'Failed to fetch patient details');
   },
 
   async admitPatient(id: string, wardId: string, bedId: string): Promise<Patient> {
@@ -74,8 +83,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wardId, bedId }),
     });
-    if (!res.ok) throw new Error('Admission failed');
-    return res.json();
+    return handleResponse<Patient>(res, 'Admission failed');
   },
 
   async dischargePatient(id: string, reason?: string): Promise<Patient> {
@@ -84,8 +92,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason })
     });
-    if (!res.ok) throw new Error('Discharge failed');
-    return res.json();
+    return handleResponse<Patient>(res, 'Discharge failed');
   },
 
   async addVitals(id: string, data: Partial<VitalSign>): Promise<VitalSign> {
@@ -94,8 +101,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to record vitals');
-    return res.json();
+    return handleResponse<VitalSign>(res, 'Failed to record vitals');
   },
 
   async createWard(data: { name: string, type: string, capacity: number }): Promise<Ward> {
@@ -104,8 +110,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to create ward');
-    return res.json();
+    return handleResponse<Ward>(res, 'Failed to create ward');
   },
 
   async addBeds(wardId: string, count: number): Promise<any> {
@@ -114,8 +119,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ count }),
     });
-    if (!res.ok) throw new Error('Failed to add beds');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to add beds');
   },
 
   async toggleBedStatus(bedId: string, status: BedStatus): Promise<any> {
@@ -124,15 +128,13 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) throw new Error('Failed to update bed status');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to update bed status');
   },
 
   async getInvestigations(query?: { type?: string, status?: string }): Promise<(Investigation & { patient: Patient })[]> {
     const params = new URLSearchParams(query as any).toString();
     const res = await fetch(`${API_BASE}/investigations?${params}`);
-    if (!res.ok) throw new Error('Failed to fetch investigations');
-    return res.json();
+    return handleResponse<(Investigation & { patient: Patient })[]>(res, 'Failed to fetch investigations');
   },
 
   async addInvestigation(patientId: string, data: Partial<Investigation>): Promise<Investigation> {
@@ -141,8 +143,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to request investigation');
-    return res.json();
+    return handleResponse<Investigation>(res, 'Failed to request investigation');
   },
 
   async addNote(patientId: string, note: Partial<ClinicalNote>): Promise<ClinicalNote> {
@@ -151,8 +152,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(note),
     });
-    if (!res.ok) throw new Error('Failed to add note');
-    return res.json();
+    return handleResponse<ClinicalNote>(res, 'Failed to add note');
   },
 
   async addPrescription(patientId: string, data: Partial<Prescription>): Promise<Prescription> {
@@ -161,8 +161,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to create prescription');
-    return res.json();
+    return handleResponse<Prescription>(res, 'Failed to create prescription');
   },
 
   async updatePrescriptionStatus(id: string, status: string): Promise<Prescription> {
@@ -171,8 +170,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) throw new Error('Failed to update prescription');
-    return res.json();
+    return handleResponse<Prescription>(res, 'Failed to update prescription');
   },
 
   async updateInvestigation(id: string, data: { status?: string, result?: string, fileUrl?: string }): Promise<Investigation> {
@@ -181,8 +179,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to update investigation');
-    return res.json();
+    return handleResponse<Investigation>(res, 'Failed to update investigation');
   },
 
   async uploadFile(file: File): Promise<{ fileUrl: string }> {
@@ -192,14 +189,12 @@ export const apiService = {
       method: 'POST',
       body: formData,
     });
-    if (!res.ok) throw new Error('File upload failed');
-    return res.json();
+    return handleResponse<{ fileUrl: string }>(res, 'File upload failed');
   },
 
   async getUsers(): Promise<any[]> {
     const res = await fetch(`${API_BASE}/users`);
-    if (!res.ok) throw new Error('Failed to fetch users');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch users');
   },
 
   async getStaff(): Promise<any[]> {
@@ -208,8 +203,7 @@ export const apiService = {
 
   async getLogs(): Promise<any[]> {
     const res = await fetch(`${API_BASE}/logs`);
-    if (!res.ok) throw new Error('Failed to fetch logs');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch logs');
   },
 
   async updateUserRole(id: string, role: string): Promise<any> {
@@ -218,16 +212,14 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
     });
-    if (!res.ok) throw new Error('Failed to update role');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to update role');
   },
 
   async deleteUser(id: string): Promise<any> {
     const res = await fetch(`${API_BASE}/users/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Failed to delete user');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to delete user');
   },
 
   async registerStaff(data: any): Promise<any> {
@@ -236,11 +228,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to register staff');
-    }
-    return res.json();
+    return handleResponse<any>(res, 'Failed to register staff');
   },
 
   async loginStaff(data: any): Promise<any> {
@@ -249,14 +237,12 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Invalid phone or password');
-    return res.json();
+    return handleResponse<any>(res, 'Invalid phone or password');
   },
 
   async getInventory(): Promise<any[]> {
     const res = await fetch(`${API_BASE}/inventory`);
-    if (!res.ok) throw new Error('Failed to fetch inventory');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch inventory');
   },
 
   async addInventoryItem(data: any): Promise<any> {
@@ -265,8 +251,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to add inventory item');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to add inventory item');
   },
 
   async updateInventoryItem(id: string, data: any): Promise<any> {
@@ -275,15 +260,13 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to update inventory item');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to update inventory item');
   },
 
   async getPrescriptions(query?: { status?: string }): Promise<any[]> {
     const params = new URLSearchParams(query as any).toString();
     const res = await fetch(`${API_BASE}/prescriptions?${params}`);
-    if (!res.ok) throw new Error('Failed to fetch prescriptions');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch prescriptions');
   },
 
   async updatePatient(id: string, data: Partial<Patient>): Promise<Patient> {
@@ -292,15 +275,14 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to update patient');
-    return res.json();
+    return handleResponse<Patient>(res, 'Failed to update patient');
   },
 
   async deletePatient(id: string): Promise<void> {
     const res = await fetch(`${API_BASE}/patients/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Failed to delete patient');
+    await handleResponse<void>(res, 'Failed to delete patient');
   },
 
   async updatePatientWorkflowStatus(id: string, workflowStatus: WorkflowStatus): Promise<Patient> {
@@ -309,23 +291,18 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workflowStatus }),
     });
-    if (!res.ok) throw new Error('Failed to update workflow status');
-    return res.json();
+    return handleResponse<Patient>(res, 'Failed to update workflow status');
   },
 
   async findPatientByFingerprint(fingerprintId: string): Promise<Patient> {
     const res = await fetch(`${API_BASE}/patients/fingerprint/${fingerprintId}`);
-    if (!res.ok) {
-      if (res.status === 404) throw new Error('Fingerprint not recognized');
-      throw new Error('Biometric search failed');
-    }
-    return res.json();
+    if (res.status === 404) throw new Error('Fingerprint not recognized');
+    return handleResponse<Patient>(res, 'Biometric search failed');
   },
 
   async getPricing(): Promise<any[]> {
     const res = await fetch(`${API_BASE}/pricing`);
-    if (!res.ok) throw new Error('Failed to fetch pricing');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch pricing');
   },
 
   async updatePricing(data: { name: string, category: string, price: number }): Promise<any> {
@@ -334,36 +311,31 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update pricing');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to update pricing');
   },
 
   async getPatientBills(id: string): Promise<any[]> {
     const res = await fetch(`${API_BASE}/patients/${id}/bills`);
-    if (!res.ok) throw new Error('Failed to fetch patient bills');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch patient bills');
   },
 
   async createBill(patientId: string): Promise<any> {
     const res = await fetch(`${API_BASE}/patients/${patientId}/bills`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Failed to create bill');
-    return res.json();
+    return handleResponse<any>(res, 'Failed to create bill');
   },
 
   async payBill(id: string): Promise<any> {
     const res = await fetch(`${API_BASE}/bills/${id}/pay`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Payment failed');
-    return res.json();
+    return handleResponse<any>(res, 'Payment failed');
   },
 
   async getBills(): Promise<any[]> {
     const res = await fetch(`${API_BASE}/bills`);
-    if (!res.ok) throw new Error('Failed to fetch global bills');
-    return res.json();
+    return handleResponse<any[]>(res, 'Failed to fetch global bills');
   },
 
   async addTreatmentPlan(patientId: string, data: any): Promise<any> {
@@ -372,7 +344,7 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return handleResponse<any>(res, 'Failed to create treatment plan');
   },
 
   async addReview(patientId: string, data: any): Promise<any> {
@@ -381,11 +353,11 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return handleResponse<any>(res, 'Failed to record review');
   },
 
   async seedData() {
     const res = await fetch(`${API_BASE}/dev/seed`, { method: 'POST' });
-    return res.json();
+    return handleResponse<any>(res, 'Failed to seed data');
   }
 };

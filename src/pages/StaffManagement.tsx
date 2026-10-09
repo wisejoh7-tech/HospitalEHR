@@ -5,15 +5,10 @@ import {
   Users, 
   ShieldCheck, 
   UserPlus, 
-  Mail, 
-  UserCircle, 
   Trash2, 
-  MoreVertical,
-  CheckCircle2,
-  AlertCircle,
   Search
 } from 'lucide-react';
-import { cn, formatDate } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -27,13 +22,12 @@ export default function StaffManagement() {
     name: '', 
     phone: '', 
     password: '', 
-    role: (profile?.role === 'pharmacy_admin' ? 'pharmacy' : 'doctor') as UserRole 
+    role: 'doctor' as UserRole
   });
 
   const fetchStaff = async () => {
     try {
       const data = await apiService.getUsers();
-      // Filter out admins from common list or show all
       setStaff(data);
       setLoading(false);
     } catch (err) {
@@ -47,23 +41,30 @@ export default function StaffManagement() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (profile?.role !== 'admin') {
+      alert('Only administrators can register staff.');
+      return;
+    }
     try {
-      // Clean phone number
       const cleanedStaff = {
         ...newStaff,
         phone: newStaff.phone.replace(/\s+/g, '').replace(/-/g, '')
       };
       await apiService.registerStaff(cleanedStaff);
       setShowAddModal(false);
-      setNewStaff({ name: '', phone: '', password: '', role: (profile?.role === 'pharmacy_admin' ? 'pharmacy' : 'doctor') as UserRole });
+      setNewStaff({ name: '', phone: '', password: '', role: 'doctor' as UserRole });
       fetchStaff();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to register staff');
+      alert(err.message || 'Failed to register staff');
     }
   };
 
   const handleUpdateRole = async (userId: string, role: string) => {
+    if (profile?.role !== 'admin') {
+      alert('Only administrators can assign roles.');
+      return;
+    }
     try {
       await apiService.updateUserRole(userId, role);
       setStaff(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
@@ -73,6 +74,10 @@ export default function StaffManagement() {
   };
 
   const handleDeleteStaff = async (userId: string) => {
+    if (profile?.role !== 'admin') {
+      alert('Only administrators can remove staff members.');
+      return;
+    }
     if (!window.confirm('Are you sure you want to remove this staff member? This action cannot be undone.')) return;
     try {
       await apiService.deleteUser(userId);
@@ -84,19 +89,20 @@ export default function StaffManagement() {
   };
 
   const isAdmin = profile?.role === 'admin';
-  const isPharmacyAdmin = profile?.role === 'pharmacy_admin';
-  const roles: UserRole[] = isAdmin 
-    ? ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology']
-    : ['pharmacy'];
+  const roles: UserRole[] = ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology'];
 
   const filteredStaff = staff.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          user.role.toLowerCase().includes(searchTerm.toLowerCase());
-    if (isPharmacyAdmin) {
-      return matchesSearch && user.role === 'pharmacy';
-    }
-    return matchesSearch;
+    return user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           user.role.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  if (!isAdmin) {
+    return (
+      <div className="p-8 text-center text-red-600 font-bold bg-red-50 rounded-2xl border border-red-100">
+        Access Denied. Only administrators can access Staff Management and register staff.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in mt-20">
@@ -203,7 +209,7 @@ export default function StaffManagement() {
                 
                 <p className="text-sm font-medium text-gray-500 mb-8 bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start gap-3">
                    <ShieldCheck className="text-blue-600 shrink-0 mt-0.5" size={18} />
-                   {isPharmacyAdmin ? 'Register a new pharmacy member specifically for medication dispensing.' : 'Admin: Register new hospital staff members with secure credentials.'}
+                   Admin: Register new hospital staff members with secure credentials.
                 </p>
 
                 <form className="space-y-6" onSubmit={handleRegister}>
@@ -226,7 +232,6 @@ export default function StaffManagement() {
                           className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold" 
                           value={newStaff.role} 
                           onChange={e => setNewStaff({...newStaff, role: e.target.value as any})}
-                          disabled={isPharmacyAdmin}
                         >
                            {roles.map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}
                         </select>

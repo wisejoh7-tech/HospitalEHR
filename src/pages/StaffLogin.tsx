@@ -48,12 +48,6 @@ export default function StaffLogin() {
         phone: cleanPhone, 
         password: password.trim() 
       });
-      
-      if (userData.role === 'admin') {
-         setError('Admins should use the dedicated Admin Portal');
-         setIsSubmitting(false);
-         return;
-      }
 
       loginManual(userData);
       navigate(getRedirectPath(userData.role));
@@ -81,7 +75,7 @@ export default function StaffLogin() {
             <Hospital size={32} className="sm:w-10 sm:h-10" />
           </div>
           <h1 className="text-xl sm:text-3xl font-black text-gray-900 mb-1 sm:mb-2">Hospital Portal</h1>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium tracking-tight">Clinical & Administrative Services</p>
+          <p className="text-xs sm:text-sm text-gray-500 font-medium tracking-tight">Clinical & Administrative Services Login</p>
         </div>
 
         {error && (
@@ -137,15 +131,6 @@ export default function StaffLogin() {
             <LogIn size={18} />
           </button>
         </form>
-
-        <div className="mt-8 sm:mt-12 flex items-center justify-center text-center">
-            <button 
-              onClick={() => navigate('/admin/login')}
-              className="text-[10px] font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
-            >
-              Admin Portal
-            </button>
-        </div>
       </motion.div>
     </div>
   );

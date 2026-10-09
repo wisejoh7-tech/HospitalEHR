@@ -35,7 +35,7 @@ export default function Layout() {
 
   const handleLogout = async () => {
     logout();
-    navigate('/staff/login');
+    navigate('/login');
   };
 
   const navItems = [
@@ -43,7 +43,7 @@ export default function Layout() {
     { icon: Bed, label: 'Wards', path: '/wards', roles: ['admin', 'doctor', 'nurse'] },
     { icon: Activity, label: 'Vitals Record', path: '/vitals-record', roles: ['admin', 'nurse'] },
     { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer'] },
-    { icon: CalendarDays, label: 'Appointments', path: '/appointments', roles: ['admin', 'doctor', 'record'] },
+    { icon: CalendarDays, label: 'Appointments', path: '/appointments', roles: ['admin', 'record', 'doctor'] },
     { icon: Microscope, label: 'Investigations', path: '/investigations', roles: ['admin', 'doctor', 'nurse', 'lab', 'radiology', 'scientist', 'radiographer'] },
     { icon: Pill, label: 'Pharmacy', path: '/pharmacy', roles: ['doctor', 'pharmacy', 'pharmacy_admin'] },
     { icon: BookOpenText, label: 'Academic Rounds', path: '/academic-rounds', roles: ['admin', 'doctor'] },
@@ -52,7 +52,7 @@ export default function Layout() {
     { icon: Banknote, label: 'Billing', path: '/billing', roles: ['admin', 'doctor'] },
     { icon: Settings, label: 'Revenue Config', path: '/revenue', roles: ['admin'] },
     { icon: ClipboardList, label: 'Records', path: '/records', roles: ['admin', 'record'] },
-    { icon: Users, label: 'Staff Management', path: '/staff', roles: ['admin', 'pharmacy_admin'] },
+    { icon: Users, label: 'Staff Management', path: '/staff', roles: ['admin'] },
     { icon: Activity, label: 'System Logs', path: '/logs', roles: ['admin'] },
   ];
 
