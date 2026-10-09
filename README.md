@@ -6,14 +6,13 @@
 
 This repository contains the complete frontend and backend code for the Hospital Management System.
 
-## Database Setup (SQLite)
+## Database Setup (PostgreSQL)
 
-The application uses **SQLite** as its database engine via Prisma ORM.
+The application uses **PostgreSQL** as its database engine via Prisma ORM.
 
-- SQLite database schema: `prisma/schema.prisma`
-- Default SQLite database file: `prisma/dev.db`
+- Database schema: `prisma/schema.prisma`
 
-To initialize and sync the SQLite database:
+To initialize and sync the PostgreSQL database:
 ```bash
 npx prisma generate
 npx prisma db push
@@ -27,8 +26,8 @@ npx prisma db push
 For deploying the backend service (e.g. Node.js Express server on Render, Railway, AWS EC2, or Docker):
 
 ```env
-# Connection string for SQLite database
-DATABASE_URL="file:./dev.db"
+# Connection string for PostgreSQL database
+DATABASE_URL="postgresql://postgres:password@localhost:5432/hospital_db?schema=public"
 
 # Server port
 PORT=3000
@@ -61,13 +60,13 @@ VITE_API_BASE_URL="https://your-backend-service.onrender.com"
    ```bash
    npm install
    ```
-2. Initialize SQLite database:
+2. Initialize PostgreSQL database:
    ```bash
    npx prisma db push
    ```
 3. Set your environment variables in `.env` (or `.env.local`):
    ```env
-   DATABASE_URL="file:./dev.db"
+   DATABASE_URL="postgresql://postgres:password@localhost:5432/hospital_db?schema=public"
    GEMINI_API_KEY="your_gemini_api_key"
    ```
 4. Start the local server:
@@ -86,7 +85,7 @@ VITE_API_BASE_URL="https://your-backend-service.onrender.com"
    ```
 2. Set environment variables on your web host:
    - `NODE_ENV=production`
-   - `DATABASE_URL=file:./dev.db`
+   - `DATABASE_URL=postgresql://postgres:password@localhost:5432/hospital_db?schema=public`
    - `PORT=3000`
    - `GEMINI_API_KEY=...`
 3. Start the production server:
@@ -98,7 +97,7 @@ VITE_API_BASE_URL="https://your-backend-service.onrender.com"
 
 1. **Deploy Backend Web Service:**
    - Host as Node.js web service.
-   - Configure env: `DATABASE_URL="file:./dev.db"`, `NODE_ENV="production"`, `PORT=3000`, `GEMINI_API_KEY=...`
+   - Configure env: `DATABASE_URL="postgresql://postgres:password@localhost:5432/hospital_db?schema=public"`, `NODE_ENV="production"`, `PORT=3000`, `GEMINI_API_KEY=...`
    - Start script: `npx tsx server.ts`
 
 2. **Deploy Frontend Static Site:**
