@@ -47,18 +47,20 @@ async function startServer() {
   // Ensure default admin exists
   const ensureAdmin = async () => {
     try {
-      const adminCount = await prisma.user.count({ where: { role: 'admin' } });
-      if (adminCount === 0) {
-        await prisma.user.create({
-          data: {
-            name: 'System Admin',
-            phone: '08000000000',
-            password: 'admin',
-            role: 'admin'
-          }
-        });
-        console.log('✅ Default admin account created (08000000000 / admin)');
-      }
+      await prisma.user.upsert({
+        where: { phone: '08000000000' },
+        update: {
+          password: 'admin',
+          role: 'admin'
+        },
+        create: {
+          name: 'System Admin',
+          phone: '08000000000',
+          password: 'admin',
+          role: 'admin'
+        }
+      });
+      console.log('✅ Default admin account verified (08000000000 / admin)');
     } catch (err) {
       console.error('Failed to ensure default admin:', err);
     }
