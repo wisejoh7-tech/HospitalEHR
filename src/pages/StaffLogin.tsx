@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hospital, LogIn, ShieldAlert, Eye, EyeOff, UserCircle } from 'lucide-react';
+import { Hospital, LogIn, ShieldAlert, ShieldCheck, Eye, EyeOff, UserCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { apiService } from '../services/apiService';
@@ -62,6 +62,35 @@ export default function StaffLogin() {
       navigate(getRedirectPath(userData.role));
     } catch (err: any) {
       setError(err.message || 'Login failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAdminQuickLogin = async () => {
+    setError(null);
+    setIsSubmitting(true);
+    setPhone('08000000000');
+    setPassword('admin');
+
+    try {
+      const userData = await apiService.loginStaff({
+        phone: '08000000000',
+        password: 'admin'
+      });
+
+      if (!userData) {
+        throw new Error('Invalid phone or password');
+      }
+
+      if (!userData.role) {
+        throw new Error('User profile is missing an assigned role');
+      }
+
+      loginManual(userData);
+      navigate(getRedirectPath(userData.role));
+    } catch (err: any) {
+      setError(err.message || 'Admin login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -140,6 +169,20 @@ export default function StaffLogin() {
             <LogIn size={16} />
           </button>
         </form>
+
+        <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+          <p className="text-[11px] text-gray-500 mb-2 font-semibold">Administrator Access</p>
+          <button
+            type="button"
+            onClick={handleAdminQuickLogin}
+            disabled={isSubmitting}
+            className="w-full bg-slate-900 text-white font-black py-2.5 text-xs rounded-xl transition-all shadow-md hover:bg-slate-800 active:scale-95 flex items-center justify-center gap-2"
+          >
+            <ShieldCheck size={16} className="text-amber-400" />
+            {isSubmitting ? 'Authenticating Admin...' : 'Login as Admin'}
+          </button>
+          <p className="text-[10px] text-gray-400 mt-2 font-mono">Default: 08000000000 / admin</p>
+        </div>
       </motion.div>
     </div>
   );
