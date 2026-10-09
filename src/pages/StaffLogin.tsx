@@ -182,6 +182,9 @@ export default function StaffLogin() {
             {isSubmitting ? 'Authenticating Admin...' : 'Login as Admin'}
           </button>
           <p className="text-[10px] text-gray-400 mt-2 font-mono">Default: 08000000000 / admin</p>
+          <p className="text-[9px] text-gray-400 mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+            Note: Staff & Admin authentication uses the Hospital Portal backend API (Prisma database), not Firebase Auth.
+          </p>
         </div>
       </motion.div>
     </div>

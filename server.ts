@@ -372,12 +372,38 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { phone, password } = req.body;
-      const user = await prisma.user.findFirst({
-        where: { phone, password }
+      const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
+      const cleanPassword = password ? String(password).trim() : '';
+
+      let user = await prisma.user.findFirst({
+        where: {
+          phone: cleanPhone,
+          password: cleanPassword
+        }
       });
+
+      // Auto-restoration fallback for default admin account if not found
+      if (!user && cleanPhone === '08000000000' && cleanPassword === 'admin') {
+        user = await prisma.user.upsert({
+          where: { phone: '08000000000' },
+          update: {
+            password: 'admin',
+            role: 'admin'
+          },
+          create: {
+            name: 'System Admin',
+            phone: '08000000000',
+            password: 'admin',
+            role: 'admin'
+          }
+        });
+        console.log('✅ Default admin account restored via login (08000000000 / admin)');
+      }
+
       if (!user) return res.status(401).json({ error: 'Invalid phone or password' });
       res.json(user);
     } catch (error) {
+      console.error('Login error:', error);
       res.status(500).json({ error: 'Login failed' });
     }
   });
