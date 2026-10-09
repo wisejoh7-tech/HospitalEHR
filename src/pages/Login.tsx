@@ -142,18 +142,18 @@ export default function Login() {
       </div>
 
       {/* Right side - Login */}
-      <div className="w-full lg:w-2/5 flex items-center justify-center p-8 bg-white overflow-y-auto">
-        <div className="max-w-md w-full py-10">
-          <div className="mb-10">
-            <div className="lg:hidden mb-6 flex justify-center">
-              <div className="p-3 bg-blue-600 rounded-xl text-white">
-                <Hospital size={32} />
+      <div className="w-full lg:w-2/5 flex items-center justify-center p-4 sm:p-8 bg-white overflow-y-auto">
+        <div className="max-w-md w-full py-6 sm:py-10">
+          <div className="mb-6 sm:mb-10">
+            <div className="lg:hidden mb-4 flex justify-center">
+              <div className="p-2.5 bg-blue-600 rounded-xl text-white">
+                <Hospital size={28} />
               </div>
             </div>
-            <h2 className="text-3xl font-black text-gray-900 mb-2">
+            <h2 className="text-xl sm:text-3xl font-black text-gray-900 mb-1.5 sm:mb-2 text-center lg:text-left">
               {isRegistering ? 'Staff Registration' : 'VIVO Hospital Portal'}
             </h2>
-            <p className="text-gray-500 font-medium">
+            <p className="text-xs sm:text-base text-gray-500 font-medium text-center lg:text-left">
               {isRegistering ? 'Create your professional account' : 'VIVO® Administrative Control Panel'}
             </p>
           </div>
@@ -165,26 +165,26 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-6">
+          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4 sm:space-y-6">
             {isRegistering && (
               <>
-                <div className="space-y-2">
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
+                <div className="space-y-1 sm:space-y-2">
+                  <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Dr. John Doe"
-                    className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                    className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border-none rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Departmental Role</label>
+                <div className="space-y-1 sm:space-y-2">
+                  <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">Departmental Role</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value as any)}
-                    className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none"
+                    className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border-none rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none"
                     required
                   >
                     <option value="doctor">Medical Doctor</option>
@@ -199,33 +199,33 @@ export default function Login() {
               </>
             )}
 
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Admin ID / Phone</label>
+            <div className="space-y-1 sm:space-y-2">
+              <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">Admin ID / Phone</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="080 0000 0000"
-                className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border-none rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Security Password</label>
+            <div className="space-y-1 sm:space-y-2">
+              <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">Security Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-12"
+                  className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border-none rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-12"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-blue-600 transition-colors bg-white rounded-lg shadow-sm border border-gray-100"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 transition-colors bg-white rounded-lg shadow-sm border border-gray-100"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -233,53 +233,53 @@ export default function Login() {
             </div>
 
             {isRegistering && (
-              <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Confirm Password</label>
+              <div className="space-y-1 sm:space-y-2">
+                <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">Confirm Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-gray-50 border-none rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   required
                 />
               </div>
             )}
 
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-2.5 pt-2">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gray-900 text-white font-black py-5 rounded-[2rem] transition-all shadow-xl shadow-gray-100 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+                className="w-full bg-gray-900 text-white font-black py-3.5 sm:py-4 text-sm sm:text-base rounded-xl sm:rounded-[2rem] transition-all shadow-lg hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2"
               >
                 {isSubmitting ? 'Processing...' : (isRegistering ? 'Register Staff Account' : 'Authorize Access')}
-                <LogIn size={20} />
+                <LogIn size={18} />
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsRegistering(!isRegistering)}
-                className="text-xs font-bold text-gray-400 hover:text-gray-900 transition-colors text-center py-2"
+                className="text-[11px] sm:text-xs font-bold text-gray-400 hover:text-gray-900 transition-colors text-center py-1.5"
               >
                 {isRegistering ? 'Already have an account? Sign In' : 'New Staff Member? Create Account'}
               </button>
             </div>
           </form>
 
-          <div className="flex flex-col gap-3 pt-6 border-t border-gray-100 mt-8">
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-4 border-t border-gray-100 mt-6">
                <button
                  onClick={() => navigate('/admin/login')}
-                 className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:bg-black flex items-center justify-center gap-3"
+                 className="flex-1 bg-gray-900 text-white text-xs sm:text-sm font-black py-3 rounded-xl transition-all shadow hover:bg-black flex items-center justify-center gap-2"
                >
-                 <ShieldCheck size={20} />
+                 <ShieldCheck size={18} />
                  Admin Portal
                </button>
                
                <button
                  onClick={() => navigate('/staff/login')}
-                 className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:bg-blue-700 flex items-center justify-center gap-3"
+                 className="flex-1 bg-blue-600 text-white text-xs sm:text-sm font-black py-3 rounded-xl transition-all shadow hover:bg-blue-700 flex items-center justify-center gap-2"
                >
-                 <Hospital size={20} />
+                 <Hospital size={18} />
                  Staff Portal
                </button>
           </div>
