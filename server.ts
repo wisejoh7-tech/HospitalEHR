@@ -295,6 +295,10 @@ async function startServer() {
 
   app.patch('/api/users/:id/role', async (req, res) => {
     try {
+      const requesterRole = req.headers['x-user-role'];
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Only administrators can update staff roles.' });
+      }
       const { role } = req.body;
       const user = await prisma.user.update({
         where: { id: req.params.id },
@@ -309,6 +313,10 @@ async function startServer() {
 
   app.delete('/api/users/:id', async (req, res) => {
     try {
+      const requesterRole = req.headers['x-user-role'];
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Only administrators can remove staff.' });
+      }
       const user = await prisma.user.delete({
         where: { id: req.params.id }
       });
@@ -374,6 +382,11 @@ async function startServer() {
 
   app.post('/api/auth/staff', async (req, res) => {
     try {
+      const requesterRole = req.headers['x-user-role'];
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Only administrators can register staff.' });
+      }
+
       const { name, phone, password, role } = req.body;
       
       // Basic validation
