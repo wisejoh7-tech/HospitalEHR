@@ -44,11 +44,11 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?
     );
   }
 
-  if (!profile) {
+  if (!profile || !profile.role) {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && profile && !roles.includes(profile.role)) {
+  if (roles && !roles.includes(profile.role)) {
     return <Navigate to="/" replace />;
   }
 
@@ -57,7 +57,7 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode, roles?
 
 function RoleRedirect() {
   const { profile } = useAuth();
-  if (!profile) return null;
+  if (!profile || !profile.role) return <Navigate to="/login" replace />;
 
   switch (profile.role) {
     case 'nurse': return <Navigate to="/vitals-record" replace />;

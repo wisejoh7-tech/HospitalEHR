@@ -105,7 +105,9 @@ export default function Dashboard() {
 
         // Staff distribution
         const distribution = allStaff.reduce((acc: any, staff: any) => {
-          acc[staff.role] = (acc[staff.role] || 0) + 1;
+          if (staff && staff.role) {
+            acc[staff.role] = (acc[staff.role] || 0) + 1;
+          }
           return acc;
         }, {} as Record<string, number>);
         setStaffByRole(distribution);

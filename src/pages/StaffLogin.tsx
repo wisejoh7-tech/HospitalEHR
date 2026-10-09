@@ -9,7 +9,8 @@ export default function StaffLogin() {
   const { profile, loginManual } = useAuth();
   const navigate = useNavigate();
 
-  const getRedirectPath = (role: string) => {
+  const getRedirectPath = (role?: string | null) => {
+    if (!role) return '/';
     switch (role) {
       case 'nurse': return '/vitals-record';
       case 'pharmacy_admin':
@@ -24,7 +25,7 @@ export default function StaffLogin() {
   };
 
   React.useEffect(() => {
-    if (profile) {
+    if (profile && profile.role) {
       navigate(getRedirectPath(profile.role));
     }
   }, [profile, navigate]);
@@ -48,6 +49,14 @@ export default function StaffLogin() {
         phone: cleanPhone, 
         password: password.trim() 
       });
+
+      if (!userData) {
+        throw new Error('Invalid phone or password');
+      }
+
+      if (!userData.role) {
+        throw new Error('User profile is missing an assigned role');
+      }
 
       loginManual(userData);
       navigate(getRedirectPath(userData.role));
