@@ -48,22 +48,55 @@ async function startServer() {
 
   app.use('/uploads', express.static('uploads'));
 
+  // Phone matching utility functions
+  const normalizePhoneDigits = (phoneStr?: string | null): string => {
+    if (!phoneStr) return '';
+    let digits = phoneStr.replace(/\D/g, '');
+    if (digits.startsWith('234') && digits.length === 13) {
+      digits = '0' + digits.slice(3);
+    }
+    return digits;
+  };
+
+  const phonesMatch = (phoneA?: string | null, phoneB?: string | null): boolean => {
+    if (!phoneA || !phoneB) return false;
+    const rawA = phoneA.replace(/\s+/g, '').replace(/-/g, '').trim();
+    const rawB = phoneB.replace(/\s+/g, '').replace(/-/g, '').trim();
+    if (rawA === rawB) return true;
+
+    const normA = normalizePhoneDigits(phoneA);
+    const normB = normalizePhoneDigits(phoneB);
+    if (normA && normB && normA === normB) return true;
+
+    const last10A = normA.slice(-10);
+    const last10B = normB.slice(-10);
+    if (last10A.length === 10 && last10A === last10B) return true;
+
+    return false;
+  };
+
   // Ensure default admin exists
   const ensureAdmin = async () => {
     try {
-      await prisma.user.upsert({
-        where: { phone: '08000000000' },
-        update: {
-          password: 'admin',
-          role: 'admin'
-        },
-        create: {
-          name: 'System Admin',
-          phone: '08000000000',
-          password: 'admin',
-          role: 'admin'
-        }
+      const existingAdmin = await prisma.user.findFirst({
+        where: { role: 'admin' }
       });
+
+      if (!existingAdmin) {
+        await prisma.user.upsert({
+          where: { phone: '08000000000' },
+          update: {
+            password: 'admin',
+            role: 'admin'
+          },
+          create: {
+            name: 'System Admin',
+            phone: '08000000000',
+            password: 'admin',
+            role: 'admin'
+          }
+        });
+      }
       console.log('✅ Default admin account verified (08000000000 / admin)');
     } catch (err) {
       console.error('Failed to ensure default admin:', err);
@@ -377,39 +410,21 @@ async function startServer() {
     try {
       const { phone, password } = req.body;
       const rawPhone = phone ? String(phone).trim() : '';
-      const cleanDigits = rawPhone.replace(/\D/g, '');
-      const cleanPhone = rawPhone.replace(/\s+/g, '').replace(/-/g, '');
       const cleanPassword = password ? String(password).trim() : '';
 
-      if (!cleanPassword || (!cleanDigits && !cleanPhone)) {
+      if (!cleanPassword || !rawPhone) {
         return res.status(401).json({ error: 'Invalid phone or password' });
       }
 
-      let user = await prisma.user.findFirst({
-        where: {
-          password: cleanPassword,
-          OR: [
-            { phone: cleanPhone },
-            { phone: rawPhone },
-            { phone: cleanDigits }
-          ]
-        }
+      // Find candidate users matching password
+      const usersWithPass = await prisma.user.findMany({
+        where: { password: cleanPassword }
       });
 
-      if (!user) {
-        const usersWithPass = await prisma.user.findMany({
-          where: { password: cleanPassword }
-        });
-        user = usersWithPass.find(u => {
-          if (!u.phone) return false;
-          const uDigits = u.phone.replace(/\D/g, '');
-          const uClean = u.phone.replace(/\s+/g, '').replace(/-/g, '').trim();
-          return (cleanDigits && uDigits === cleanDigits) || (cleanPhone && uClean === cleanPhone);
-        }) || null;
-      }
+      let user = usersWithPass.find(u => phonesMatch(u.phone, rawPhone)) || null;
 
-      // Auto-restoration fallback for default admin account if not found
-      if (!user && (cleanPhone === '08000000000' || cleanDigits === '08000000000' || cleanDigits === '8000000000') && cleanPassword === 'admin') {
+      // Fallback: If user searching for admin credentials specifically and not matched yet
+      if (!user && (phonesMatch(rawPhone, '08000000000') || rawPhone.includes('8000000000')) && cleanPassword === 'admin') {
         user = await prisma.user.upsert({
           where: { phone: '08000000000' },
           update: {
