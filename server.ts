@@ -454,7 +454,6 @@ async function startServer() {
       const { name, phone, password, role } = req.body;
       const cleanName = name ? String(name).trim() : '';
       const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
-      const cleanDigits = cleanPhone.replace(/\D/g, '');
       const cleanPassword = password ? String(password).trim() : '';
       const cleanRole = role ? String(role).trim() : 'doctor';
 
@@ -463,14 +462,9 @@ async function startServer() {
         return res.status(400).json({ error: 'All fields (Name, Phone, Password) are required' });
       }
 
-      // Check if phone already registered
+      // Check if phone already registered using robust phone matching
       const allUsers = await prisma.user.findMany();
-      const existingUser = allUsers.find(u => {
-        if (!u.phone) return false;
-        const uDigits = u.phone.replace(/\D/g, '');
-        const uClean = u.phone.replace(/\s+/g, '').replace(/-/g, '').trim();
-        return uClean === cleanPhone || (cleanDigits && uDigits === cleanDigits);
-      });
+      const existingUser = allUsers.find(u => u.phone && phonesMatch(u.phone, cleanPhone));
 
       if (existingUser) {
         return res.status(400).json({ error: 'This phone number is already registered' });
@@ -489,7 +483,10 @@ async function startServer() {
       res.status(201).json(user);
     } catch (error: any) {
       console.error('Registration error:', error);
-      res.status(500).json({ error: 'Registration failed. Please try again.' });
+      if (error?.code === 'P2002') {
+        return res.status(400).json({ error: 'This phone number is already registered' });
+      }
+      res.status(500).json({ error: error.message || 'Registration failed. Please try again.' });
     }
   });
 
@@ -503,7 +500,6 @@ async function startServer() {
       const { name, phone, password, role } = req.body;
       const cleanName = name ? String(name).trim() : '';
       const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
-      const cleanDigits = cleanPhone.replace(/\D/g, '');
       const cleanPassword = password ? String(password).trim() : '';
       const cleanRole = role ? String(role).trim() : 'doctor';
       
@@ -512,14 +508,9 @@ async function startServer() {
         return res.status(400).json({ error: 'All fields are required' });
       }
 
-      // Check if phone already registered
+      // Check if phone already registered using robust phone matching
       const allUsers = await prisma.user.findMany();
-      const existingUser = allUsers.find(u => {
-        if (!u.phone) return false;
-        const uDigits = u.phone.replace(/\D/g, '');
-        const uClean = u.phone.replace(/\s+/g, '').replace(/-/g, '').trim();
-        return uClean === cleanPhone || (cleanDigits && uDigits === cleanDigits);
-      });
+      const existingUser = allUsers.find(u => u.phone && phonesMatch(u.phone, cleanPhone));
 
       if (existingUser) {
         return res.status(400).json({ error: 'This phone number is already registered' });
@@ -538,7 +529,10 @@ async function startServer() {
       res.status(201).json(user);
     } catch (error: any) {
       console.error('Registration error:', error);
-      res.status(500).json({ error: 'Registration failed. Please try again.' });
+      if (error?.code === 'P2002') {
+        return res.status(400).json({ error: 'This phone number is already registered' });
+      }
+      res.status(500).json({ error: error.message || 'Registration failed. Please try again.' });
     }
   });
 
