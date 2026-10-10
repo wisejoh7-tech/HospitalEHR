@@ -8,6 +8,10 @@ import multer from 'multer';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:' + path.join(process.cwd(), 'prisma', 'dev.db');
+}
+
 const prisma = new PrismaClient();
 
 async function startServer() {
@@ -372,18 +376,40 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { phone, password } = req.body;
-      const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
+      const rawPhone = phone ? String(phone).trim() : '';
+      const cleanDigits = rawPhone.replace(/\D/g, '');
+      const cleanPhone = rawPhone.replace(/\s+/g, '').replace(/-/g, '');
       const cleanPassword = password ? String(password).trim() : '';
+
+      if (!cleanPassword || (!cleanDigits && !cleanPhone)) {
+        return res.status(401).json({ error: 'Invalid phone or password' });
+      }
 
       let user = await prisma.user.findFirst({
         where: {
-          phone: cleanPhone,
-          password: cleanPassword
+          password: cleanPassword,
+          OR: [
+            { phone: cleanPhone },
+            { phone: rawPhone },
+            { phone: cleanDigits }
+          ]
         }
       });
 
+      if (!user) {
+        const usersWithPass = await prisma.user.findMany({
+          where: { password: cleanPassword }
+        });
+        user = usersWithPass.find(u => {
+          if (!u.phone) return false;
+          const uDigits = u.phone.replace(/\D/g, '');
+          const uClean = u.phone.replace(/\s+/g, '').replace(/-/g, '').trim();
+          return (cleanDigits && uDigits === cleanDigits) || (cleanPhone && uClean === cleanPhone);
+        }) || null;
+      }
+
       // Auto-restoration fallback for default admin account if not found
-      if (!user && cleanPhone === '08000000000' && cleanPassword === 'admin') {
+      if (!user && (cleanPhone === '08000000000' || cleanDigits === '08000000000' || cleanDigits === '8000000000') && cleanPassword === 'admin') {
         user = await prisma.user.upsert({
           where: { phone: '08000000000' },
           update: {
@@ -416,15 +442,24 @@ async function startServer() {
       }
 
       const { name, phone, password, role } = req.body;
+      const cleanName = name ? String(name).trim() : '';
+      const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
+      const cleanDigits = cleanPhone.replace(/\D/g, '');
+      const cleanPassword = password ? String(password).trim() : '';
+      const cleanRole = role ? String(role).trim() : 'doctor';
       
       // Basic validation
-      if (!name || !phone || !password) {
+      if (!cleanName || !cleanPhone || !cleanPassword) {
         return res.status(400).json({ error: 'All fields are required' });
       }
 
       // Check if phone already registered
-      const existingUser = await prisma.user.findUnique({
-        where: { phone }
+      const allUsers = await prisma.user.findMany();
+      const existingUser = allUsers.find(u => {
+        if (!u.phone) return false;
+        const uDigits = u.phone.replace(/\D/g, '');
+        const uClean = u.phone.replace(/\s+/g, '').replace(/-/g, '').trim();
+        return uClean === cleanPhone || (cleanDigits && uDigits === cleanDigits);
       });
 
       if (existingUser) {
@@ -432,10 +467,15 @@ async function startServer() {
       }
 
       const user = await prisma.user.create({
-        data: { name, phone, password, role }
+        data: {
+          name: cleanName,
+          phone: cleanPhone,
+          password: cleanPassword,
+          role: cleanRole
+        }
       });
 
-      await logAction('system', 'Admin', `Registered staff: ${name} (${role})`, user.id, 'User');
+      await logAction('system', 'Admin', `Registered account: ${cleanName} (${cleanRole})`, user.id, 'User');
       res.status(201).json(user);
     } catch (error: any) {
       console.error('Registration error:', error);
