@@ -227,6 +227,15 @@ export const apiService = {
     return handleResponse<any>(res, 'Failed to delete user');
   },
 
+  async registerAccount(data: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(res, 'Failed to register account');
+  },
+
   async registerStaff(data: any, adminRole?: string): Promise<any> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (adminRole) headers['x-user-role'] = adminRole;
