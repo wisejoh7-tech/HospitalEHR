@@ -140,6 +140,12 @@ export default function StaffLogin() {
             <LogIn size={16} />
           </button>
         </form>
+
+        <div className="mt-4 pt-3 border-t border-gray-100 text-center">
+          <p className="text-[10px] text-gray-500 font-semibold">
+            Default Admin Login: <span className="font-bold text-blue-600 font-mono">08000000000</span> / <span className="font-bold text-blue-600 font-mono">admin</span>
+          </p>
+        </div>
       </motion.div>
     </div>
   );
