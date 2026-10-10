@@ -449,6 +449,50 @@ async function startServer() {
     }
   });
 
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { name, phone, password, role } = req.body;
+      const cleanName = name ? String(name).trim() : '';
+      const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
+      const cleanDigits = cleanPhone.replace(/\D/g, '');
+      const cleanPassword = password ? String(password).trim() : '';
+      const cleanRole = role ? String(role).trim() : 'doctor';
+
+      // Basic validation
+      if (!cleanName || !cleanPhone || !cleanPassword) {
+        return res.status(400).json({ error: 'All fields (Name, Phone, Password) are required' });
+      }
+
+      // Check if phone already registered
+      const allUsers = await prisma.user.findMany();
+      const existingUser = allUsers.find(u => {
+        if (!u.phone) return false;
+        const uDigits = u.phone.replace(/\D/g, '');
+        const uClean = u.phone.replace(/\s+/g, '').replace(/-/g, '').trim();
+        return uClean === cleanPhone || (cleanDigits && uDigits === cleanDigits);
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'This phone number is already registered' });
+      }
+
+      const user = await prisma.user.create({
+        data: {
+          name: cleanName,
+          phone: cleanPhone,
+          password: cleanPassword,
+          role: cleanRole
+        }
+      });
+
+      await logAction('system', user.name, `Registered account: ${cleanName} (${cleanRole})`, user.id, 'User');
+      res.status(201).json(user);
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      res.status(500).json({ error: 'Registration failed. Please try again.' });
+    }
+  });
+
   app.post('/api/auth/staff', async (req, res) => {
     try {
       const requesterRole = req.headers['x-user-role'];
