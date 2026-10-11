@@ -81,31 +81,37 @@ async function startServer() {
   // Ensure default admin exists
   const ensureAdmin = async () => {
     try {
-      const existingAdmin = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { phone: '08000000000' },
-            { email: 'admin@hospital.com' }
-          ]
-        }
+      const existingAdminByEmail = await prisma.user.findFirst({
+        where: { email: 'admin@hospital.com' }
+      });
+      const existingAdminByPhone = await prisma.user.findFirst({
+        where: { phone: '08000000000' }
       });
 
-      if (!existingAdmin) {
-        await prisma.user.create({
+      if (existingAdminByEmail) {
+        await prisma.user.update({
+          where: { id: existingAdminByEmail.id },
           data: {
-            name: 'System Admin',
             phone: '08000000000',
+            password: 'admin',
+            role: 'admin'
+          }
+        });
+      } else if (existingAdminByPhone) {
+        await prisma.user.update({
+          where: { id: existingAdminByPhone.id },
+          data: {
             email: 'admin@hospital.com',
             password: 'admin',
             role: 'admin'
           }
         });
       } else {
-        await prisma.user.update({
-          where: { id: existingAdmin.id },
+        await prisma.user.create({
           data: {
-            phone: existingAdmin.phone || '08000000000',
-            email: existingAdmin.email || 'admin@hospital.com',
+            name: 'System Admin',
+            phone: '08000000000',
+            email: 'admin@hospital.com',
             password: 'admin',
             role: 'admin'
           }
@@ -430,18 +436,16 @@ async function startServer() {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
-      // Find candidate users matching password
-      const usersWithPass = await prisma.user.findMany({
-        where: { password: cleanPassword }
-      });
+      const allUsers = await prisma.user.findMany();
 
-      let user = usersWithPass.find(u => {
+      let user = allUsers.find(u => {
         const matchesEmail = u.email && u.email.toLowerCase() === rawIdentifier.toLowerCase();
-        const matchesPhone = phonesMatch(u.phone, rawIdentifier);
-        return Boolean(matchesEmail || matchesPhone);
+        const matchesPhone = u.phone && phonesMatch(u.phone, rawIdentifier);
+        const matchesEmailPrefix = u.email && !rawIdentifier.includes('@') && u.email.toLowerCase().startsWith(rawIdentifier.toLowerCase() + '@');
+        return Boolean(matchesEmail || matchesPhone || matchesEmailPrefix);
       }) || null;
 
-      // Fallback: If searching for admin credentials specifically and not matched yet
+      // Fallback: If searching for admin credentials specifically
       if (
         !user &&
         (
@@ -449,28 +453,19 @@ async function startServer() {
           phonesMatch(rawIdentifier, '08000000000') ||
           rawIdentifier.includes('8000000000') ||
           rawIdentifier.toLowerCase() === 'admin'
-        ) &&
-        cleanPassword === 'admin'
+        )
       ) {
-        user = await prisma.user.upsert({
-          where: { phone: '08000000000' },
-          update: {
-            email: 'admin@hospital.com',
-            password: 'admin',
-            role: 'admin'
-          },
-          create: {
-            name: 'System Admin',
-            phone: '08000000000',
-            email: 'admin@hospital.com',
-            password: 'admin',
-            role: 'admin'
-          }
-        });
-        console.log('✅ Default admin account restored via login (admin@hospital.com / 08000000000 / admin)');
+        user = allUsers.find(u => u.role === 'admin' || u.email === 'admin@hospital.com' || (u.phone && phonesMatch(u.phone, '08000000000'))) || null;
       }
 
-      if (!user) return res.status(401).json({ error: 'Invalid email/phone or password' });
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid email/phone or password' });
+      }
+
+      if (user.password !== cleanPassword) {
+        return res.status(401).json({ error: 'Invalid email/phone or password' });
+      }
+
       res.json(user);
     } catch (error) {
       console.error('Login error:', error);
@@ -490,6 +485,10 @@ async function startServer() {
       // Basic validation
       if (!cleanName || (!cleanPhone && !cleanEmail) || !cleanPassword) {
         return res.status(400).json({ error: 'Name, Password, and either Email or Phone number are required' });
+      }
+
+      if (cleanEmail && (!cleanEmail.includes('@') || !cleanEmail.includes('.'))) {
+        return res.status(400).json({ error: 'Please enter a valid email address (e.g. name@hospital.com)' });
       }
 
       // Check if phone or email already registered
@@ -541,6 +540,10 @@ async function startServer() {
       // Basic validation
       if (!cleanName || (!cleanPhone && !cleanEmail) || !cleanPassword) {
         return res.status(400).json({ error: 'Name, Password, and either Email or Phone number are required' });
+      }
+
+      if (cleanEmail && (!cleanEmail.includes('@') || !cleanEmail.includes('.'))) {
+        return res.status(400).json({ error: 'Please enter a valid email address (e.g. name@hospital.com)' });
       }
 
       // Check if phone or email already registered

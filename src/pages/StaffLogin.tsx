@@ -119,6 +119,11 @@ export default function StaffLogin() {
       return;
     }
 
+    if (cleanEmail && (!cleanEmail.includes('@') || !cleanEmail.includes('.'))) {
+      setError('Please enter a valid email address (e.g. name@hospital.com)');
+      return;
+    }
+
     if (!cleanPassword) {
       setError('Password is required');
       return;
@@ -142,7 +147,15 @@ export default function StaffLogin() {
       loginManual(userData);
       navigate(getRedirectPath(userData.role));
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      const errMsg = err.message || 'Registration failed';
+      setError(errMsg);
+      if (errMsg.toLowerCase().includes('already registered')) {
+        // If phone or email is already registered, suggest switching to Login
+        const existingIdent = cleanPhone || cleanEmail;
+        if (existingIdent) {
+          setIdentifier(existingIdent);
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -270,9 +283,24 @@ export default function StaffLogin() {
         </div>
 
         {error && (
-          <div className="mb-4 p-2.5 bg-red-50 border border-red-100 rounded-lg flex gap-2 text-red-600 items-start">
-            <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-            <p className="text-xs font-medium leading-tight">{error}</p>
+          <div className="mb-4 p-2.5 bg-red-50 border border-red-100 rounded-lg flex flex-col gap-1.5 text-red-600">
+            <div className="flex gap-2 items-start">
+              <ShieldAlert size={16} className="shrink-0 mt-0.5" />
+              <p className="text-xs font-medium leading-tight">{error}</p>
+            </div>
+            {error.toLowerCase().includes('already registered') && activeTab === 'register' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('login');
+                  setError(null);
+                  setSuccessMsg('Phone/Email pre-filled. Please enter your password to sign in.');
+                }}
+                className="mt-1 text-xs font-bold text-blue-700 underline hover:text-blue-800 text-left cursor-pointer"
+              >
+                → Already registered? Click here to Sign In
+              </button>
+            )}
           </div>
         )}
 
