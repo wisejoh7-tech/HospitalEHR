@@ -82,25 +82,36 @@ async function startServer() {
   const ensureAdmin = async () => {
     try {
       const existingAdmin = await prisma.user.findFirst({
-        where: { role: 'admin' }
+        where: {
+          OR: [
+            { phone: '08000000000' },
+            { email: 'admin@hospital.com' }
+          ]
+        }
       });
 
       if (!existingAdmin) {
-        await prisma.user.upsert({
-          where: { phone: '08000000000' },
-          update: {
-            password: 'admin',
-            role: 'admin'
-          },
-          create: {
+        await prisma.user.create({
+          data: {
             name: 'System Admin',
             phone: '08000000000',
+            email: 'admin@hospital.com',
+            password: 'admin',
+            role: 'admin'
+          }
+        });
+      } else {
+        await prisma.user.update({
+          where: { id: existingAdmin.id },
+          data: {
+            phone: existingAdmin.phone || '08000000000',
+            email: existingAdmin.email || 'admin@hospital.com',
             password: 'admin',
             role: 'admin'
           }
         });
       }
-      console.log('✅ Default admin account verified (08000000000 / admin)');
+      console.log('✅ Default admin account verified (08000000000 or admin@hospital.com / admin)');
     } catch (err) {
       console.error('Failed to ensure default admin:', err);
     }
@@ -411,12 +422,12 @@ async function startServer() {
   // Auth
   app.post('/api/auth/login', async (req, res) => {
     try {
-      const { phone, password } = req.body;
-      const rawPhone = phone ? String(phone).trim() : '';
+      const { identifier, phone, email, password } = req.body;
+      const rawIdentifier = (identifier || phone || email || '').toString().trim();
       const cleanPassword = password ? String(password).trim() : '';
 
-      if (!cleanPassword || !rawPhone) {
-        return res.status(401).json({ error: 'Invalid phone or password' });
+      if (!cleanPassword || !rawIdentifier) {
+        return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
       // Find candidate users matching password
@@ -424,27 +435,42 @@ async function startServer() {
         where: { password: cleanPassword }
       });
 
-      let user = usersWithPass.find(u => phonesMatch(u.phone, rawPhone)) || null;
+      let user = usersWithPass.find(u => {
+        const matchesEmail = u.email && u.email.toLowerCase() === rawIdentifier.toLowerCase();
+        const matchesPhone = phonesMatch(u.phone, rawIdentifier);
+        return Boolean(matchesEmail || matchesPhone);
+      }) || null;
 
-      // Fallback: If user searching for admin credentials specifically and not matched yet
-      if (!user && (phonesMatch(rawPhone, '08000000000') || rawPhone.includes('8000000000')) && cleanPassword === 'admin') {
+      // Fallback: If searching for admin credentials specifically and not matched yet
+      if (
+        !user &&
+        (
+          rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
+          phonesMatch(rawIdentifier, '08000000000') ||
+          rawIdentifier.includes('8000000000') ||
+          rawIdentifier.toLowerCase() === 'admin'
+        ) &&
+        cleanPassword === 'admin'
+      ) {
         user = await prisma.user.upsert({
           where: { phone: '08000000000' },
           update: {
+            email: 'admin@hospital.com',
             password: 'admin',
             role: 'admin'
           },
           create: {
             name: 'System Admin',
             phone: '08000000000',
+            email: 'admin@hospital.com',
             password: 'admin',
             role: 'admin'
           }
         });
-        console.log('✅ Default admin account restored via login (08000000000 / admin)');
+        console.log('✅ Default admin account restored via login (admin@hospital.com / 08000000000 / admin)');
       }
 
-      if (!user) return res.status(401).json({ error: 'Invalid phone or password' });
+      if (!user) return res.status(401).json({ error: 'Invalid email/phone or password' });
       res.json(user);
     } catch (error) {
       console.error('Login error:', error);
@@ -454,29 +480,34 @@ async function startServer() {
 
   app.post('/api/auth/register', async (req, res) => {
     try {
-      const { name, phone, password, role } = req.body;
+      const { name, phone, email, password, role } = req.body;
       const cleanName = name ? String(name).trim() : '';
       const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
+      const cleanEmail = email ? String(email).trim().toLowerCase() : '';
       const cleanPassword = password ? String(password).trim() : '';
       const cleanRole = role ? String(role).trim() : 'doctor';
 
       // Basic validation
-      if (!cleanName || !cleanPhone || !cleanPassword) {
-        return res.status(400).json({ error: 'All fields (Name, Phone, Password) are required' });
+      if (!cleanName || (!cleanPhone && !cleanEmail) || !cleanPassword) {
+        return res.status(400).json({ error: 'Name, Password, and either Email or Phone number are required' });
       }
 
-      // Check if phone already registered using robust phone matching
+      // Check if phone or email already registered
       const allUsers = await prisma.user.findMany();
-      const existingUser = allUsers.find(u => u.phone && phonesMatch(u.phone, cleanPhone));
+      const existingUser = allUsers.find(u =>
+        (cleanPhone && u.phone && phonesMatch(u.phone, cleanPhone)) ||
+        (cleanEmail && u.email && u.email.toLowerCase() === cleanEmail)
+      );
 
       if (existingUser) {
-        return res.status(400).json({ error: 'This phone number is already registered' });
+        return res.status(400).json({ error: 'A user with this email or phone number is already registered' });
       }
 
       const user = await prisma.user.create({
         data: {
           name: cleanName,
-          phone: cleanPhone,
+          phone: cleanPhone || null,
+          email: cleanEmail || null,
           password: cleanPassword,
           role: cleanRole
         }
@@ -487,7 +518,7 @@ async function startServer() {
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error?.code === 'P2002') {
-        return res.status(400).json({ error: 'This phone number is already registered' });
+        return res.status(400).json({ error: 'Email or phone number is already registered' });
       }
       res.status(500).json({ error: error.message || 'Registration failed. Please try again.' });
     }
@@ -500,29 +531,34 @@ async function startServer() {
         return res.status(403).json({ error: 'Forbidden: Only administrators can register staff.' });
       }
 
-      const { name, phone, password, role } = req.body;
+      const { name, phone, email, password, role } = req.body;
       const cleanName = name ? String(name).trim() : '';
       const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
+      const cleanEmail = email ? String(email).trim().toLowerCase() : '';
       const cleanPassword = password ? String(password).trim() : '';
       const cleanRole = role ? String(role).trim() : 'doctor';
       
       // Basic validation
-      if (!cleanName || !cleanPhone || !cleanPassword) {
-        return res.status(400).json({ error: 'All fields are required' });
+      if (!cleanName || (!cleanPhone && !cleanEmail) || !cleanPassword) {
+        return res.status(400).json({ error: 'Name, Password, and either Email or Phone number are required' });
       }
 
-      // Check if phone already registered using robust phone matching
+      // Check if phone or email already registered
       const allUsers = await prisma.user.findMany();
-      const existingUser = allUsers.find(u => u.phone && phonesMatch(u.phone, cleanPhone));
+      const existingUser = allUsers.find(u =>
+        (cleanPhone && u.phone && phonesMatch(u.phone, cleanPhone)) ||
+        (cleanEmail && u.email && u.email.toLowerCase() === cleanEmail)
+      );
 
       if (existingUser) {
-        return res.status(400).json({ error: 'This phone number is already registered' });
+        return res.status(400).json({ error: 'A user with this email or phone number is already registered' });
       }
 
       const user = await prisma.user.create({
         data: {
           name: cleanName,
-          phone: cleanPhone,
+          phone: cleanPhone || null,
+          email: cleanEmail || null,
           password: cleanPassword,
           role: cleanRole
         }
@@ -533,7 +569,7 @@ async function startServer() {
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error?.code === 'P2002') {
-        return res.status(400).json({ error: 'This phone number is already registered' });
+        return res.status(400).json({ error: 'Email or phone number is already registered' });
       }
       res.status(500).json({ error: error.message || 'Registration failed. Please try again.' });
     }
