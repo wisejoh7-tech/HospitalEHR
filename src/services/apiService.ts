@@ -247,13 +247,13 @@ export const apiService = {
     return handleResponse<any>(res, 'Failed to register staff');
   },
 
-  async loginStaff(data: any): Promise<any> {
+  async loginStaff(data: { identifier?: string; phone?: string; email?: string; password: string }): Promise<any> {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse<any>(res, 'Invalid phone or password');
+    return handleResponse<any>(res, 'Invalid email/phone or password');
   },
 
   async getInventory(): Promise<any[]> {

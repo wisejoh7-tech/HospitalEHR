@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hospital, LogIn, ShieldAlert, Eye, EyeOff, UserCircle, UserPlus, User, ShieldCheck } from 'lucide-react';
+import { Hospital, LogIn, ShieldAlert, Eye, EyeOff, UserCircle, UserPlus, User, Mail, Phone, KeyRound, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { apiService } from '../services/apiService';
@@ -31,19 +31,27 @@ export default function StaffLogin() {
     }
   }, [profile, navigate]);
 
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
-  // Form states
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('admin');
+  // Login form states
+  const [identifier, setIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Register form states
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regRole, setRegRole] = useState<UserRole>('admin');
+
+  // Common UI states
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const rolesList: { value: UserRole; label: string }[] = [
-    { value: 'admin', label: 'Admin' },
+    { value: 'admin', label: 'System Admin' },
     { value: 'doctor', label: 'Doctor' },
     { value: 'nurse', label: 'Nurse' },
     { value: 'record', label: 'Record Officer' },
@@ -56,19 +64,26 @@ export default function StaffLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
     setIsSubmitting(true);
-    
-    // Clean phone number (remove spaces, dashes)
-    const cleanPhone = phone.replace(/\s+/g, '').replace(/-/g, '');
+
+    const cleanIdentifier = identifier.trim();
+    const cleanPassword = loginPassword.trim();
+
+    if (!cleanIdentifier || !cleanPassword) {
+      setError('Please provide your email/phone and password');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const userData = await apiService.loginStaff({ 
-        phone: cleanPhone, 
-        password: password.trim() 
+        identifier: cleanIdentifier,
+        password: cleanPassword
       });
 
       if (!userData) {
-        throw new Error('Invalid phone or password');
+        throw new Error('Invalid email/phone or password');
       }
 
       if (!userData.role) {
@@ -87,21 +102,37 @@ export default function StaffLogin() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
 
-    if (!name.trim() || !phone.trim() || !password.trim()) {
-      setError('All fields are required');
+    const cleanName = regName.trim();
+    const cleanPhone = regPhone.replace(/\s+/g, '').replace(/-/g, '').trim();
+    const cleanEmail = regEmail.trim();
+    const cleanPassword = regPassword.trim();
+
+    if (!cleanName) {
+      setError('Full Name is required');
+      return;
+    }
+
+    if (!cleanPhone && !cleanEmail) {
+      setError('Either Email or Phone Number must be provided');
+      return;
+    }
+
+    if (!cleanPassword) {
+      setError('Password is required');
       return;
     }
 
     setIsSubmitting(true);
-    const cleanPhone = phone.replace(/\s+/g, '').replace(/-/g, '').trim();
 
     try {
       const userData = await apiService.registerAccount({
-        name: name.trim(),
-        phone: cleanPhone,
-        password: password.trim(),
-        role: role
+        name: cleanName,
+        phone: cleanPhone || undefined,
+        email: cleanEmail || undefined,
+        password: cleanPassword,
+        role: regRole
       });
 
       if (!userData) {
@@ -117,31 +148,125 @@ export default function StaffLogin() {
     }
   };
 
-  const toggleMode = () => {
+  const fillAdminCredentials = (type: 'email' | 'phone') => {
     setError(null);
-    setIsRegistering(!isRegistering);
+    setSuccessMsg('Admin credentials pre-filled!');
+    setActiveTab('login');
+    if (type === 'email') {
+      setIdentifier('admin@hospital.com');
+    } else {
+      setIdentifier('08000000000');
+    }
+    setLoginPassword('admin');
   };
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-3 relative overflow-hidden bg-cover bg-center"
+      className="min-h-screen flex items-center justify-center p-3 sm:p-4 relative overflow-hidden bg-cover bg-center"
       style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1200')` }}
     >
-      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"></div>
       
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-xs sm:max-w-sm bg-white rounded-2xl shadow-2xl p-5 sm:p-6 relative z-10 border border-gray-100"
+        className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 sm:p-6 relative z-10 border border-gray-100"
       >
-        <div className="text-center mb-5">
-          <div className="inline-flex p-2.5 bg-blue-600 rounded-xl text-white mb-3 shadow-md shadow-blue-100">
-            <Hospital size={24} />
+        <div className="text-center mb-4">
+          <div className="inline-flex p-3 bg-gradient-to-tr from-blue-700 to-indigo-600 rounded-2xl text-white mb-2 shadow-lg shadow-blue-500/20">
+            <Hospital size={28} />
           </div>
-          <h1 className="text-lg sm:text-xl font-extrabold text-gray-900 mb-0.5">Hospital Portal</h1>
-          <p className="text-[11px] sm:text-xs text-gray-500 font-medium tracking-tight">
-            {isRegistering ? 'Register Admin or Staff Account' : 'Clinical & Administrative Login'}
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Hospital Portal</h1>
+          <p className="text-xs text-gray-500 font-medium tracking-tight mt-0.5">
+            Clinical & Administrative Access
           </p>
+        </div>
+
+        {/* Admin Login Details Banner */}
+        <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-xl">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5 text-blue-900 font-bold text-xs">
+              <ShieldCheck size={16} className="text-blue-600 shrink-0" />
+              <span>Admin Login Details</span>
+            </div>
+            <span className="px-2 py-0.5 bg-blue-600 text-white font-extrabold text-[10px] rounded-full uppercase tracking-wider">Default</span>
+          </div>
+
+          <div className="text-[11px] text-gray-700 space-y-1 font-mono bg-white/70 p-2 rounded-lg border border-blue-100">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-sans font-medium">Email:</span>
+              <button
+                type="button"
+                onClick={() => fillAdminCredentials('email')}
+                className="font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
+                title="Click to fill email"
+              >
+                admin@hospital.com <Sparkles size={11} className="text-amber-500" />
+              </button>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-sans font-medium">Phone:</span>
+              <button
+                type="button"
+                onClick={() => fillAdminCredentials('phone')}
+                className="font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
+                title="Click to fill phone"
+              >
+                08000000000 <Sparkles size={11} className="text-amber-500" />
+              </button>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-sans font-medium">Password:</span>
+              <span className="font-bold text-slate-900">admin</span>
+            </div>
+          </div>
+
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => fillAdminCredentials('email')}
+              className="flex-1 py-1 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg transition-all text-center flex items-center justify-center gap-1 shadow-xs"
+            >
+              <KeyRound size={12} />
+              Auto-fill Admin (Email)
+            </button>
+            <button
+              type="button"
+              onClick={() => fillAdminCredentials('phone')}
+              className="flex-1 py-1 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg transition-all text-center flex items-center justify-center gap-1 shadow-xs"
+            >
+              <Phone size={12} />
+              Auto-fill Admin (Phone)
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Navigation for Login and Register on same page */}
+        <div className="flex bg-gray-100 p-1 rounded-xl mb-4 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+            className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'login'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <LogIn size={15} />
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
+            className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'register'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <UserPlus size={15} />
+            Register
+          </button>
         </div>
 
         {error && (
@@ -151,17 +276,26 @@ export default function StaffLogin() {
           </div>
         )}
 
-        {!isRegistering ? (
+        {successMsg && (
+          <div className="mb-4 p-2.5 bg-emerald-50 border border-emerald-100 rounded-lg flex gap-2 text-emerald-700 items-center">
+            <Sparkles size={16} className="shrink-0" />
+            <p className="text-xs font-semibold leading-tight">{successMsg}</p>
+          </div>
+        )}
+
+        {activeTab === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div className="space-y-1">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Phone Number</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                Email Address or Phone Number
+              </label>
               <div className="relative">
                 <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="080 0000 0000"
-                  className="w-full px-3 py-2.5 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pl-9"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="admin@hospital.com or 08000000000"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-9"
                   required
                 />
                 <UserCircle size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -169,14 +303,16 @@ export default function StaffLogin() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Access Password</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                Password
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2.5 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-10"
                   required
                 />
                 <button
@@ -199,34 +335,49 @@ export default function StaffLogin() {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleRegister} className="space-y-3.5">
+          <form onSubmit={handleRegister} className="space-y-3">
             <div className="space-y-1">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Full Name</label>
               <div className="relative">
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
                   placeholder="Dr. John Doe"
-                  className="w-full px-3 py-2.5 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pl-9"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-9"
                   required
                 />
                 <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Phone Number</label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="080 0000 0000"
-                  className="w-full px-3 py-2.5 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pl-9"
-                  required
-                />
-                <UserCircle size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Email Address</label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="user@hospital.com"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-8"
+                  />
+                  <Mail size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Phone Number</label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    placeholder="08000000000"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-8"
+                  />
+                  <Phone size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
               </div>
             </div>
 
@@ -236,10 +387,10 @@ export default function StaffLogin() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-3 py-2.5 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-8"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8"
                     required
                   />
                   <button
@@ -255,9 +406,9 @@ export default function StaffLogin() {
               <div className="space-y-1">
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Role</label>
                 <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full px-2 py-2.5 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  value={regRole}
+                  onChange={(e) => setRegRole(e.target.value as UserRole)}
+                  className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
                 >
                   {rolesList.map(r => (
                     <option key={r.value} value={r.value}>{r.label}</option>
@@ -276,22 +427,6 @@ export default function StaffLogin() {
             </button>
           </form>
         )}
-
-        <div className="mt-4 pt-3 border-t border-gray-100 text-center space-y-2">
-          <button
-            type="button"
-            onClick={toggleMode}
-            className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors hover:underline"
-          >
-            {isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Register"}
-          </button>
-
-          {!isRegistering && (
-            <p className="text-[10px] text-gray-500 font-semibold block">
-              Default Admin Login: <span className="font-bold text-blue-600 font-mono">08000000000</span> / <span className="font-bold text-blue-600 font-mono">admin</span>
-            </p>
-          )}
-        </div>
       </motion.div>
     </div>
   );
