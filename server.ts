@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
@@ -9,7 +10,9 @@ import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'file:' + path.join(process.cwd(), 'prisma', 'dev.db');
+  process.env.DATABASE_URL = 'postgresql://cbt_w7jg_user:1PMrhihntrU1zpbMOgYqQ3G7ymNbIxuT@dpg-damlbobm8hqs73djc8dg-a.oregon-postgres.render.com/cbt_w7jg';
+} else if (process.env.DATABASE_URL.includes('@dpg-') && !process.env.DATABASE_URL.includes('.render.com')) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/@dpg-([a-z0-9]+)\//, '@dpg-$1.oregon-postgres.render.com/');
 }
 
 const prisma = new PrismaClient();
