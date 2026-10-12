@@ -1,6 +1,13 @@
 import { Patient, Ward, ClinicalNote, Prescription, Investigation, VitalSign, BedStatus, WorkflowStatus, Appointment } from '../types';
 
-const API_BASE = '/api';
+const getApiBase = (): string => {
+  const rawUrl = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').trim();
+  if (!rawUrl) return '/api';
+  const cleanUrl = rawUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
+export const API_BASE = getApiBase();
 
 async function handleResponse<T>(res: Response, defaultError = 'Request failed'): Promise<T> {
   let body: any = null;

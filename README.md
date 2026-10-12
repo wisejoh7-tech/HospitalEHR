@@ -29,6 +29,9 @@ For deploying the backend service (e.g. Node.js Express server on Render, Railwa
 # Connection string for PostgreSQL database
 DATABASE_URL="postgresql://postgres:password@localhost:5432/hospital_db?schema=public"
 
+# Allowed frontend origin for CORS
+ALLOWED_ORIGINS="https://cbt-vivi.onrender.com"
+
 # Server port
 PORT=3000
 
@@ -46,8 +49,9 @@ APP_URL="https://your-backend-service.onrender.com"
 When building and hosting the static frontend (e.g. Vercel, Netlify, Cloudflare Pages, AWS S3 / CloudFront):
 
 ```env
-# Backend API URL that the frontend communicates with
-VITE_API_BASE_URL="https://your-backend-service.onrender.com"
+# Backend API URL that the frontend communicates with (both VITE_API_URL and VITE_API_BASE_URL are supported)
+VITE_API_URL="https://cbt-9v2x.onrender.com"
+VITE_API_BASE_URL="https://cbt-9v2x.onrender.com"
 ```
 
 ---
