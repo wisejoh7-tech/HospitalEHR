@@ -88,10 +88,16 @@ async function startServer() {
         where: { phone: '08000000000' }
       });
 
+      if (existingAdminByEmail && existingAdminByPhone && existingAdminByEmail.id !== existingAdminByPhone.id) {
+        // Resolve duplicate admin entries safely before update
+        await prisma.user.delete({ where: { id: existingAdminByPhone.id } });
+      }
+
       if (existingAdminByEmail) {
         await prisma.user.update({
           where: { id: existingAdminByEmail.id },
           data: {
+            email: 'admin@hospital.com',
             phone: '08000000000',
             password: 'admin',
             role: 'admin'
@@ -102,6 +108,7 @@ async function startServer() {
           where: { id: existingAdminByPhone.id },
           data: {
             email: 'admin@hospital.com',
+            phone: '08000000000',
             password: 'admin',
             role: 'admin'
           }
@@ -442,7 +449,8 @@ async function startServer() {
         const matchesEmail = u.email && u.email.toLowerCase() === rawIdentifier.toLowerCase();
         const matchesPhone = u.phone && phonesMatch(u.phone, rawIdentifier);
         const matchesEmailPrefix = u.email && !rawIdentifier.includes('@') && u.email.toLowerCase().startsWith(rawIdentifier.toLowerCase() + '@');
-        return Boolean(matchesEmail || matchesPhone || matchesEmailPrefix);
+        const matchesName = u.name && u.name.toLowerCase() === rawIdentifier.toLowerCase();
+        return Boolean(matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
       }) || null;
 
       // Fallback: If searching for admin credentials specifically
@@ -455,7 +463,7 @@ async function startServer() {
           rawIdentifier.toLowerCase() === 'admin'
         )
       ) {
-        user = allUsers.find(u => u.role === 'admin' || u.email === 'admin@hospital.com' || (u.phone && phonesMatch(u.phone, '08000000000'))) || null;
+        user = allUsers.find(u => u.email === 'admin@hospital.com' || (u.phone && phonesMatch(u.phone, '08000000000')) || u.name === 'System Admin') || null;
       }
 
       if (!user) {
@@ -477,8 +485,8 @@ async function startServer() {
     try {
       const { name, phone, email, password, role } = req.body;
       const cleanName = name ? String(name).trim() : '';
-      const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
-      const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+      const cleanPhone = phone && String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : null;
+      const cleanEmail = email && String(email).trim() ? String(email).trim().toLowerCase() : null;
       const cleanPassword = password ? String(password).trim() : '';
       const cleanRole = role ? String(role).trim() : 'doctor';
 
@@ -505,8 +513,8 @@ async function startServer() {
       const user = await prisma.user.create({
         data: {
           name: cleanName,
-          phone: cleanPhone || null,
-          email: cleanEmail || null,
+          phone: cleanPhone,
+          email: cleanEmail,
           password: cleanPassword,
           role: cleanRole
         }
@@ -532,8 +540,8 @@ async function startServer() {
 
       const { name, phone, email, password, role } = req.body;
       const cleanName = name ? String(name).trim() : '';
-      const cleanPhone = phone ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : '';
-      const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+      const cleanPhone = phone && String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() ? String(phone).replace(/\s+/g, '').replace(/-/g, '').trim() : null;
+      const cleanEmail = email && String(email).trim() ? String(email).trim().toLowerCase() : null;
       const cleanPassword = password ? String(password).trim() : '';
       const cleanRole = role ? String(role).trim() : 'doctor';
       
@@ -560,8 +568,8 @@ async function startServer() {
       const user = await prisma.user.create({
         data: {
           name: cleanName,
-          phone: cleanPhone || null,
-          email: cleanEmail || null,
+          phone: cleanPhone,
+          email: cleanEmail,
           password: cleanPassword,
           role: cleanRole
         }
