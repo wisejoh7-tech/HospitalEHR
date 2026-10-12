@@ -138,32 +138,34 @@ export default function WardsOverview() {
         </div>
       </header>
 
-      {/* Occupancy Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
-        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Facility Capacity</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{occupancyStats.totalBeds}</h3>
-            <span className="text-[10px] sm:text-xs font-bold text-blue-500 mb-0.5">Total Beds</span>
+      {/* Occupancy Stats - Admin Only */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Facility Capacity</p>
+            <div className="flex items-end gap-2">
+              <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{occupancyStats.totalBeds}</h3>
+              <span className="text-[10px] sm:text-xs font-bold text-blue-500 mb-0.5">Total Beds</span>
+            </div>
+          </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm border-l-4 border-l-blue-600">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Occupancy</p>
+            <div className="flex items-end gap-2">
+              <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{occupancyStats.occupiedBeds}</h3>
+              <span className="text-[10px] sm:text-xs font-bold text-gray-400 mb-0.5">Patients</span>
+            </div>
+          </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilization Rate</p>
+            <div className="flex items-end gap-2">
+              <h3 className="text-2xl sm:text-3xl font-black text-gray-900">
+                {occupancyStats.totalBeds > 0 ? Math.round((occupancyStats.occupiedBeds / occupancyStats.totalBeds) * 100) : 0}%
+              </h3>
+              <span className="text-[10px] sm:text-xs font-bold text-green-500 mb-0.5">Live</span>
+            </div>
           </div>
         </div>
-        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm border-l-4 border-l-blue-600">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Occupancy</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-2xl sm:text-3xl font-black text-gray-900">{occupancyStats.occupiedBeds}</h3>
-            <span className="text-[10px] sm:text-xs font-bold text-gray-400 mb-0.5">Patients</span>
-          </div>
-        </div>
-        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Utilization Rate</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-2xl sm:text-3xl font-black text-gray-900">
-              {occupancyStats.totalBeds > 0 ? Math.round((occupancyStats.occupiedBeds / occupancyStats.totalBeds) * 100) : 0}%
-            </h3>
-            <span className="text-[10px] sm:text-xs font-bold text-green-500 mb-0.5">Live</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Ward Tabs & Filters */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-start sm:items-end justify-between">
