@@ -94,34 +94,34 @@ export default function ClinicalTrials() {
       </header>
 
       {/* Research Dashboard Highlights */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl w-fit mb-4">
-              <ClipboardList size={24} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white p-5 rounded-[2rem] border border-gray-200 shadow-xs">
+           <div className="p-2.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-2xl w-fit mb-3">
+              <ClipboardList size={22} />
            </div>
            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Active Protocols</p>
-           <h3 className="text-2xl font-black text-gray-900">24</h3>
+           <h3 className="text-xl sm:text-2xl font-black text-gray-900">24</h3>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl w-fit mb-4">
-              <Users size={24} />
+        <div className="bg-white p-5 rounded-[2rem] border border-gray-200 shadow-xs">
+           <div className="p-2.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-2xl w-fit mb-3">
+              <Users size={22} />
            </div>
            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Enrolled</p>
-           <h3 className="text-2xl font-black text-gray-900">842</h3>
+           <h3 className="text-xl sm:text-2xl font-black text-gray-900">842</h3>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-           <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl w-fit mb-4">
-              <Globe size={24} />
+        <div className="bg-white p-5 rounded-[2rem] border border-gray-200 shadow-xs">
+           <div className="p-2.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-2xl w-fit mb-3">
+              <Globe size={22} />
            </div>
            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Global Partnerships</p>
-           <h3 className="text-2xl font-black text-gray-900">8</h3>
+           <h3 className="text-xl sm:text-2xl font-black text-gray-900">8</h3>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-           <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl w-fit mb-4">
-              <CheckCircle2 size={24} />
+        <div className="bg-white p-5 rounded-[2rem] border border-gray-200 shadow-xs">
+           <div className="p-2.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-2xl w-fit mb-3">
+              <CheckCircle2 size={22} />
            </div>
            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">IRB Certifications</p>
-           <h3 className="text-2xl font-black text-gray-900">100%</h3>
+           <h3 className="text-xl sm:text-2xl font-black text-gray-900">100%</h3>
         </div>
       </div>
 

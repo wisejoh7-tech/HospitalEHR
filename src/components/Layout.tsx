@@ -61,7 +61,7 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex h-screen bg-[#F3F4F6] text-[#111827] font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#f8fafc] text-slate-900 font-sans overflow-hidden">
       {/* Mobile Backdrop */}
       {mobileMenuOpen && (
         <div
@@ -79,7 +79,7 @@ export default function Layout() {
       >
         <div className="p-3.5 sm:p-4 border-b border-[#E5E7EB] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-600 rounded-md text-white">
+            <div className="p-1.5 bg-blue-600 rounded-md text-white border border-blue-700">
               <Hospital size={18} />
             </div>
             <div>
@@ -89,7 +89,7 @@ export default function Layout() {
           </div>
           <button
             onClick={() => setMobileMenuOpen(false)}
-            className="p-1 text-gray-400 hover:text-gray-600 lg:hidden"
+            className="p-1 text-gray-500 hover:text-gray-700 rounded-md border border-gray-200 hover:border-gray-300 bg-white lg:hidden"
           >
             <X size={18} />
           </button>
@@ -102,10 +102,10 @@ export default function Layout() {
               to={item.path}
               onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) => cn(
-                "flex items-center gap-2 px-2.5 py-2 rounded-md transition-colors group",
+                "flex items-center gap-2 px-2.5 py-2 rounded-md transition-colors border group",
                 isActive 
-                  ? "bg-blue-50 text-blue-700" 
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-blue-50 text-blue-700 border-blue-200 font-semibold"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent hover:border-gray-200"
               )}
             >
               {({ isActive }) => (
@@ -122,8 +122,8 @@ export default function Layout() {
         </nav>
 
         <div className="p-2.5 border-t border-[#E5E7EB]">
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 mb-2">
-            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-200 mb-2">
+            <div className="w-7 h-7 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
               {profile?.name?.charAt(0) || 'U'}
             </div>
             <div className="flex-1 overflow-hidden">
@@ -133,7 +133,7 @@ export default function Layout() {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors font-medium text-xs"
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-red-600 bg-white hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-md transition-colors font-semibold text-xs shadow-2xs"
           >
             <LogOut size={14} />
             Sign Out
@@ -148,9 +148,9 @@ export default function Layout() {
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="p-1 text-gray-600 hover:bg-gray-100 rounded-md lg:hidden"
+              className="p-1.5 text-gray-600 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 rounded-md lg:hidden"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
 
             <div className="relative max-w-xs w-full">
@@ -158,24 +158,24 @@ export default function Layout() {
               <input 
                 type="text" 
                 placeholder="Search..."
-                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border-transparent rounded-md text-xs focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md relative">
+            <button className="p-1.5 text-gray-600 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 bg-white rounded-md relative">
               <Bell size={16} />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>
             </button>
-            <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md hidden sm:block">
+            <button className="p-1.5 text-gray-600 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 bg-white rounded-md hidden sm:block">
               <MessageSquare size={16} />
             </button>
           </div>
         </header>
 
         {/* View Content */}
-        <div className="flex-1 overflow-auto p-3.5 sm:p-5 lg:p-6">
+        <div className="flex-1 overflow-auto p-3.5 sm:p-5 lg:p-6 bg-[#f8fafc]">
           <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>

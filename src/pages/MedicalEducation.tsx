@@ -92,24 +92,24 @@ export default function MedicalEducation() {
   });
 
   return (
-    <div className="space-y-8 animate-in">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-purple-600 rounded-2xl text-white shadow-lg shadow-purple-200">
-            <Users size={32} />
+    <div className="space-y-6 sm:space-y-8 animate-in">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 bg-purple-600 rounded-2xl text-white border border-purple-700 shadow-2xs">
+            <Users size={28} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Staff Education & Development</h1>
-            <p className="text-gray-500 font-medium">Tracking the next generation of clinical experts</p>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Staff Education & Development</h1>
+            <p className="text-gray-500 font-medium text-xs sm:text-sm">Tracking the next generation of clinical experts</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button className="bg-gray-100 text-gray-600 px-6 py-3 rounded-2xl text-sm font-black hover:bg-gray-200 transition-all flex items-center gap-2">
-            <FileText size={18} />
+        <div className="flex flex-wrap gap-2">
+          <button className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs uppercase tracking-wider">
+            <FileText size={16} />
             Export Rotations
           </button>
-          <button className="bg-purple-600 text-white px-6 py-3 rounded-2xl text-sm font-black hover:bg-purple-700 transition-all shadow-lg flex items-center gap-2">
-            <UserPlus size={18} />
+          <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-2xl text-xs font-black transition-all border border-purple-700 shadow-xs flex items-center gap-2 uppercase tracking-wider">
+            <UserPlus size={16} />
             Onboard Trainee
           </button>
         </div>
