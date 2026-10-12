@@ -43,6 +43,12 @@ GEMINI_API_KEY="your_gemini_api_key_here"
 
 # The publicly accessible URL where the backend web service is running
 APP_URL="https://your-backend-service.onrender.com"
+
+# Admin credentials configured directly on Render backend service
+ADMIN_NAME="System Admin"
+ADMIN_EMAIL="admin@hospital.com"
+ADMIN_PHONE="08000000000"
+ADMIN_PASSWORD="your_secure_admin_password"
 ```
 
 ### 2. Frontend Static Host (`.env.production` / Environment Settings)
