@@ -84,7 +84,7 @@ export default function App() {
             
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/" element={<RoleRedirect />} />
-              <Route path="/dashboard" element={<ProtectedRoute roles={['admin', 'doctor', 'pharmacy_admin']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute roles={['admin']}><Dashboard /></ProtectedRoute>} />
               <Route path="/wards" element={<ProtectedRoute roles={['admin', 'doctor', 'nurse']}><WardsOverview /></ProtectedRoute>} />
               <Route path="/patients" element={<PatientsList />} />
               <Route path="/vitals-record" element={<ProtectedRoute roles={['admin', 'nurse']}><VitalsRecord /></ProtectedRoute>} />

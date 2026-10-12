@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Investigations() {
   const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [investigations, setInvestigations] = useState<(Investigation & { patient: any })[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'laboratory' | 'radiology'>('all');
   const [selectedInv, setSelectedInv] = useState<(Investigation & { patient: any }) | null>(null);
@@ -129,28 +130,30 @@ export default function Investigations() {
         </div>
       </header>
 
-      {/* Diagnostic Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Pending Requests</p>
-          <h3 className="text-3xl font-black text-gray-900">{investigations.filter(i => i.status === 'pending').length}</h3>
+      {/* Diagnostic Stats - Admin Only */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Pending Requests</p>
+            <h3 className="text-3xl font-black text-gray-900">{investigations.filter(i => i.status === 'pending').length}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">In Processing</p>
+            <h3 className="text-3xl font-black text-blue-600">{investigations.filter(i => i.status === 'processing' || i.status === 'sample_collected').length}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Completed (24h)</p>
+            <h3 className="text-3xl font-black text-emerald-600">{investigations.filter(i => i.status === 'completed').length}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm bg-indigo-600 text-white border-none">
+            <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mb-1">Urgent Queue</p>
+            <h3 className="text-3xl font-black">{investigations.filter(i => i.priority === 'emergency' && i.status !== 'completed').length}</h3>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">In Processing</p>
-          <h3 className="text-3xl font-black text-blue-600">{investigations.filter(i => i.status === 'processing' || i.status === 'sample_collected').length}</h3>
-        </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Completed (24h)</p>
-          <h3 className="text-3xl font-black text-emerald-600">{investigations.filter(i => i.status === 'completed').length}</h3>
-        </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm bg-indigo-600 text-white border-none">
-          <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mb-1">Urgent Queue</p>
-          <h3 className="text-3xl font-black">{investigations.filter(i => i.priority === 'emergency' && i.status !== 'completed').length}</h3>
-        </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-2 space-y-6">
+      <div className={cn("grid grid-cols-1 gap-8", isAdmin ? "xl:grid-cols-3" : "")}>
+        <div className={cn("space-y-6", isAdmin ? "xl:col-span-2" : "w-full")}>
            {loading ? (
              <div className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">Scanning Network...</div>
            ) : (
@@ -259,33 +262,35 @@ export default function Investigations() {
            )}
         </div>
 
-        <aside className="space-y-6">
-           <section className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Diagnostic Summary</h3>
-              <div className="space-y-4">
-                 {[
-                   { label: 'Pending Labs', count: investigations.filter(i => i.type === 'laboratory' && i.status === 'pending').length, color: 'bg-blue-600' },
-                   { label: 'Pending Radiology', count: investigations.filter(i => i.type === 'radiology' && i.status === 'pending').length, color: 'bg-indigo-600' },
-                   { label: 'Critical Alerts', count: 0, color: 'bg-red-600' },
-                 ].map(stat => (
-                    <div key={stat.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                       <div className="flex items-center gap-3">
-                          <div className={cn("w-2 h-2 rounded-full", stat.color)} />
-                          <span className="text-sm font-bold text-gray-600">{stat.label}</span>
-                       </div>
-                       <span className="text-lg font-black text-gray-900">{stat.count}</span>
-                    </div>
-                 ))}
-              </div>
-           </section>
+        {isAdmin && (
+          <aside className="space-y-6">
+             <section className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Diagnostic Summary</h3>
+                <div className="space-y-4">
+                   {[
+                     { label: 'Pending Labs', count: investigations.filter(i => i.type === 'laboratory' && i.status === 'pending').length, color: 'bg-blue-600' },
+                     { label: 'Pending Radiology', count: investigations.filter(i => i.type === 'radiology' && i.status === 'pending').length, color: 'bg-indigo-600' },
+                     { label: 'Critical Alerts', count: 0, color: 'bg-red-600' },
+                   ].map(stat => (
+                      <div key={stat.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                         <div className="flex items-center gap-3">
+                            <div className={cn("w-2 h-2 rounded-full", stat.color)} />
+                            <span className="text-sm font-bold text-gray-600">{stat.label}</span>
+                         </div>
+                         <span className="text-lg font-black text-gray-900">{stat.count}</span>
+                      </div>
+                   ))}
+                </div>
+             </section>
 
-           <section className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
-              <Sparkles className="absolute -right-4 -top-4 w-32 h-32 text-white/5" />
-              <h3 className="text-xs font-black text-white/50 uppercase tracking-widest mb-4">Quality Control</h3>
-              <p className="text-lg font-bold leading-snug mb-6">Scan times are currently averaging 42 minutes across units.</p>
-              <button className="w-full py-3 bg-white/20 backdrop-blur-md rounded-xl text-sm font-black hover:bg-white/30 transition-all">Optimization Report</button>
-           </section>
-        </aside>
+             <section className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+                <Sparkles className="absolute -right-4 -top-4 w-32 h-32 text-white/5" />
+                <h3 className="text-xs font-black text-white/50 uppercase tracking-widest mb-4">Quality Control</h3>
+                <p className="text-lg font-bold leading-snug mb-6">Scan times are currently averaging 42 minutes across units.</p>
+                <button className="w-full py-3 bg-white/20 backdrop-blur-md rounded-xl text-sm font-black hover:bg-white/30 transition-all">Optimization Report</button>
+             </section>
+          </aside>
+        )}
       </div>
 
       {/* Result Entry Modal */}

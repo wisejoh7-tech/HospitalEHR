@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Pharmacy() {
   const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const isPharmacyAdmin = profile?.role === 'pharmacy_admin' || profile?.role === 'admin';
   const isPharmacyStaff = profile?.role === 'pharmacy';
 
@@ -176,30 +177,32 @@ export default function Pharmacy() {
         </div>
       )}
 
-      {/* Pharmacy Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Active Orders</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-gray-900">{stats.active}</h3>
-            <span className="text-xs font-bold text-orange-500 mb-1">Queue</span>
+      {/* Pharmacy Stats - Admin Only */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Active Orders</p>
+            <div className="flex items-end gap-2">
+              <h3 className="text-3xl font-black text-gray-900">{stats.active}</h3>
+              <span className="text-xs font-bold text-orange-500 mb-1">Queue</span>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Dispensed Today</p>
+            <div className="flex items-end gap-2">
+              <h3 className="text-3xl font-black text-gray-900">{stats.dispensedToday}</h3>
+              <span className="text-xs font-bold text-green-500 mb-1">Fulfilled</span>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm bg-orange-600 text-white border-none">
+            <p className="text-[10px] font-black text-orange-200 uppercase tracking-widest mb-1">Inventory Health</p>
+            <div className="flex items-end gap-2">
+              <h3 className="text-3xl font-black">94%</h3>
+              <span className="text-xs font-bold text-orange-200 mb-1">Stocked</span>
+            </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Dispensed Today</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-gray-900">{stats.dispensedToday}</h3>
-            <span className="text-xs font-bold text-green-500 mb-1">Fulfilled</span>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm bg-orange-600 text-white border-none">
-          <p className="text-[10px] font-black text-orange-200 uppercase tracking-widest mb-1">Inventory Health</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black">94%</h3>
-            <span className="text-xs font-bold text-orange-200 mb-1">Stocked</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Pharmacy Filter Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-[2rem] border border-gray-100 shadow-sm">

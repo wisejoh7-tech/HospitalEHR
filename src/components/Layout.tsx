@@ -39,7 +39,7 @@ export default function Layout() {
   };
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'doctor', 'pharmacy_admin'] },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin'] },
     { icon: Bed, label: 'Wards', path: '/wards', roles: ['admin', 'doctor', 'nurse'] },
     { icon: Activity, label: 'Vitals Record', path: '/vitals-record', roles: ['admin', 'nurse'] },
     { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer'] },
