@@ -28,8 +28,14 @@
 }
 
 @layer base {
+  html {
+    font-size: 13.5px;
+  }
   body {
-    @apply antialiased bg-[#F3F4F6];
+    @apply antialiased bg-[#f8fafc] text-slate-900;
+  }
+  button {
+    @apply transition-all duration-150 active:scale-[0.98] border border-transparent;
   }
 }
 

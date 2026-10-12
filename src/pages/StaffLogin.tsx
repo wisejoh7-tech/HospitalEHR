@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { apiService } from '../services/apiService';
 import { UserRole } from '../types';
+import { cn } from '../lib/utils';
 
 export default function StaffLogin() {
   const { profile, loginManual } = useAuth();
@@ -238,11 +239,11 @@ export default function StaffLogin() {
             </div>
           </div>
 
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-col sm:flex-row gap-2">
             <button
               type="button"
               onClick={() => fillAdminCredentials('email')}
-              className="flex-1 py-1 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg transition-all text-center flex items-center justify-center gap-1 shadow-xs"
+              className="flex-1 py-1.5 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg transition-all border border-blue-700 text-center flex items-center justify-center gap-1 shadow-2xs"
             >
               <KeyRound size={12} />
               Auto-fill Admin (Email)
@@ -250,7 +251,7 @@ export default function StaffLogin() {
             <button
               type="button"
               onClick={() => fillAdminCredentials('phone')}
-              className="flex-1 py-1 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg transition-all text-center flex items-center justify-center gap-1 shadow-xs"
+              className="flex-1 py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg transition-all border border-indigo-700 text-center flex items-center justify-center gap-1 shadow-2xs"
             >
               <Phone size={12} />
               Auto-fill Admin (Phone)
@@ -263,11 +264,12 @@ export default function StaffLogin() {
           <button
             type="button"
             onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={cn(
+              "flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 border",
               activeTab === 'login'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+                ? "bg-white text-blue-700 border-gray-300 shadow-2xs font-black"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            )}
           >
             <LogIn size={15} />
             Login
@@ -275,11 +277,12 @@ export default function StaffLogin() {
           <button
             type="button"
             onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={cn(
+              "flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 border",
               activeTab === 'register'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+                ? "bg-white text-blue-700 border-gray-300 shadow-2xs font-black"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+            )}
           >
             <UserPlus size={15} />
             Register
@@ -361,7 +364,7 @@ export default function StaffLogin() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-blue-600 text-white font-black py-2.5 text-xs rounded-xl transition-all shadow-md hover:bg-blue-700 active:scale-95 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 text-xs rounded-xl transition-all border border-blue-700 shadow-xs flex items-center justify-center gap-2 mt-2"
             >
               {isSubmitting ? 'Authenticating...' : 'Sign In'}
               <LogIn size={16} />
@@ -453,7 +456,7 @@ export default function StaffLogin() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-blue-600 text-white font-black py-2.5 text-xs rounded-xl transition-all shadow-md hover:bg-blue-700 active:scale-95 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 text-xs rounded-xl transition-all border border-blue-700 shadow-xs flex items-center justify-center gap-2 mt-2"
             >
               {isSubmitting ? 'Registering...' : 'Register Account'}
               <UserPlus size={16} />

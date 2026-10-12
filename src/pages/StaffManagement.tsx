@@ -148,9 +148,9 @@ export default function StaffManagement() {
                setModalError(null);
                setShowAddModal(true);
              }}
-             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black shadow-md shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all shrink-0"
+             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black border border-blue-700 shadow-xs transition-all shrink-0 uppercase tracking-wider"
            >
-             <UserPlus size={16} />
+             <UserPlus size={15} />
              Create Account
            </button>
         </div>
