@@ -92,14 +92,20 @@ async function startServer() {
     return false;
   };
 
+  // Configurable admin credentials via environment variables
+  const adminName = process.env.ADMIN_NAME || 'System Admin';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@hospital.com';
+  const adminPhone = process.env.ADMIN_PHONE || '08000000000';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
+
   // Ensure default admin exists
   const ensureAdmin = async () => {
     try {
       const existingAdminByEmail = await prisma.user.findFirst({
-        where: { email: 'admin@hospital.com' }
+        where: { email: adminEmail }
       });
       const existingAdminByPhone = await prisma.user.findFirst({
-        where: { phone: '08000000000' }
+        where: { phone: adminPhone }
       });
 
       if (existingAdminByEmail && existingAdminByPhone && existingAdminByEmail.id !== existingAdminByPhone.id) {
@@ -111,9 +117,10 @@ async function startServer() {
         await prisma.user.update({
           where: { id: existingAdminByEmail.id },
           data: {
-            email: 'admin@hospital.com',
-            phone: '08000000000',
-            password: 'admin',
+            name: adminName,
+            email: adminEmail,
+            phone: adminPhone,
+            password: adminPassword,
             role: 'admin'
           }
         });
@@ -121,24 +128,25 @@ async function startServer() {
         await prisma.user.update({
           where: { id: existingAdminByPhone.id },
           data: {
-            email: 'admin@hospital.com',
-            phone: '08000000000',
-            password: 'admin',
+            name: adminName,
+            email: adminEmail,
+            phone: adminPhone,
+            password: adminPassword,
             role: 'admin'
           }
         });
       } else {
         await prisma.user.create({
           data: {
-            name: 'System Admin',
-            phone: '08000000000',
-            email: 'admin@hospital.com',
-            password: 'admin',
+            name: adminName,
+            phone: adminPhone,
+            email: adminEmail,
+            password: adminPassword,
             role: 'admin'
           }
         });
       }
-      console.log('✅ Default admin account verified (08000000000 or admin@hospital.com / admin)');
+      console.log(`✅ Default admin account verified (${adminPhone} or ${adminEmail})`);
     } catch (err) {
       console.error('Failed to ensure default admin:', err);
     }
@@ -471,13 +479,20 @@ async function startServer() {
       if (
         !user &&
         (
+          rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
+          phonesMatch(rawIdentifier, adminPhone) ||
+          rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
           rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
           phonesMatch(rawIdentifier, '08000000000') ||
-          rawIdentifier.includes('8000000000') ||
           rawIdentifier.toLowerCase() === 'admin'
         )
       ) {
-        user = allUsers.find(u => u.email === 'admin@hospital.com' || (u.phone && phonesMatch(u.phone, '08000000000')) || u.name === 'System Admin') || null;
+        user = allUsers.find(u =>
+          (u.email && u.email.toLowerCase() === adminEmail.toLowerCase()) ||
+          (u.phone && phonesMatch(u.phone, adminPhone)) ||
+          (u.name && u.name.toLowerCase() === adminName.toLowerCase()) ||
+          u.role === 'admin'
+        ) || null;
       }
 
       if (!user) {
