@@ -155,6 +155,9 @@ export default function StaffLogin() {
         if (existingIdent) {
           setIdentifier(existingIdent);
         }
+        if (cleanEmail === 'admin@hospital.com' || cleanPhone === '08000000000') {
+          setLoginPassword('admin');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -163,7 +166,7 @@ export default function StaffLogin() {
 
   const fillAdminCredentials = (type: 'email' | 'phone') => {
     setError(null);
-    setSuccessMsg('Admin credentials pre-filled!');
+    setSuccessMsg('Admin credentials pre-filled! Click "Sign In" below.');
     setActiveTab('login');
     if (type === 'email') {
       setIdentifier('admin@hospital.com');
@@ -294,7 +297,8 @@ export default function StaffLogin() {
                 onClick={() => {
                   setActiveTab('login');
                   setError(null);
-                  setSuccessMsg('Phone/Email pre-filled. Please enter your password to sign in.');
+                  if (!loginPassword) setLoginPassword('admin');
+                  setSuccessMsg('Phone/Email pre-filled. Please click Sign In to enter.');
                 }}
                 className="mt-1 text-xs font-bold text-blue-700 underline hover:text-blue-800 text-left cursor-pointer"
               >
