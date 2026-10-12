@@ -57,6 +57,7 @@ export default function PatientDetails() {
   const [nextAppointment, setNextAppointment] = useState('');
   const [isUpdatingAppointment, setIsUpdatingAppointment] = useState(false);
 
+  const isAdmin = profile?.role === 'admin';
   const isDoctor = profile?.role === 'doctor';
   const isNurse = profile?.role === 'nurse';
   const isClinical = isDoctor || isNurse;
@@ -238,10 +239,14 @@ export default function PatientDetails() {
       setShowInvModal(false);
 
       // Auto-move to lab/radiology after ordering
-      if (patient?.workflowStatus === 'consultation') {
-        const nextStatus = invType === 'radiology' ? 'radiology' : 'laboratory';
-        const updated = await apiService.updatePatientWorkflowStatus(id, nextStatus);
-        setPatient(updated);
+      if (isAdmin && patient?.workflowStatus === 'consultation') {
+        try {
+          const nextStatus = invType === 'radiology' ? 'radiology' : 'laboratory';
+          const updated = await apiService.updatePatientWorkflowStatus(id, nextStatus, profile?.role);
+          setPatient(updated);
+        } catch (e) {
+          console.error(e);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -271,9 +276,13 @@ export default function PatientDetails() {
       setRxForm({ medication: '', dosage: '', frequency: '', duration: '' });
 
       // Auto-move to pharmacy stage
-      if (patient?.workflowStatus === 'consultation') {
-        const updated = await apiService.updatePatientWorkflowStatus(id, 'pharmacy');
-        setPatient(updated);
+      if (isAdmin && patient?.workflowStatus === 'consultation') {
+        try {
+          const updated = await apiService.updatePatientWorkflowStatus(id, 'pharmacy', profile?.role);
+          setPatient(updated);
+        } catch (e) {
+          console.error(e);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -307,9 +316,13 @@ export default function PatientDetails() {
       setVitalsForm({ bp: '', pulse: '', temp: '', resp: '', spo2: '', weight: '' });
 
       // Auto-move to consultation after vitals
-      if (patient?.workflowStatus === 'vitals') {
-        const updated = await apiService.updatePatientWorkflowStatus(id, 'consultation');
-        setPatient(updated);
+      if (isAdmin && patient?.workflowStatus === 'vitals') {
+        try {
+          const updated = await apiService.updatePatientWorkflowStatus(id, 'consultation', profile?.role);
+          setPatient(updated);
+        } catch (e) {
+          console.error(e);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -473,17 +486,17 @@ export default function PatientDetails() {
             </button>
           )}
 
-          {isClinical && (
+          {isAdmin && (
             <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3">Workflow Status:</span>
                <select 
                  value={patient.workflowStatus}
                  onChange={async (e) => {
                    try {
-                     const updated = await apiService.updatePatientWorkflowStatus(id!, e.target.value as any);
+                     const updated = await apiService.updatePatientWorkflowStatus(id!, e.target.value as any, profile?.role);
                      setPatient(prev => prev ? { ...prev, workflowStatus: updated.workflowStatus } : null);
-                   } catch (err) {
-                     alert("Failed to update status");
+                   } catch (err: any) {
+                     alert(err?.message || "Failed to update status");
                    }
                  }}
                  className="px-4 py-2 bg-white border border-gray-100 rounded-lg text-xs font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-100"
@@ -987,9 +1000,13 @@ export default function PatientDetails() {
                                     e.target.value = '';
                                     
                                     // Auto-move to treatment stage
-                                    if (patient?.workflowStatus === 'consultation') {
-                                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment');
-                                      setPatient(updated);
+                                    if (isAdmin && patient?.workflowStatus === 'consultation') {
+                                      try {
+                                        const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment', profile?.role);
+                                        setPatient(updated);
+                                      } catch (e) {
+                                        console.error(e);
+                                      }
                                     }
                                   }}
                                 />
@@ -1020,9 +1037,13 @@ export default function PatientDetails() {
                                  e.target.value = '';
 
                                  // Auto-move to treatment stage after review
-                                 if (patient?.workflowStatus === 'consultation') {
-                                   const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment');
-                                   setPatient(updated);
+                                 if (isAdmin && patient?.workflowStatus === 'consultation') {
+                                   try {
+                                     const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment', profile?.role);
+                                     setPatient(updated);
+                                   } catch (e) {
+                                     console.error(e);
+                                   }
                                  }
                                }}
                              />

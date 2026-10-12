@@ -308,10 +308,12 @@ export const apiService = {
     await handleResponse<void>(res, 'Failed to delete patient');
   },
 
-  async updatePatientWorkflowStatus(id: string, workflowStatus: WorkflowStatus): Promise<Patient> {
+  async updatePatientWorkflowStatus(id: string, workflowStatus: WorkflowStatus, userRole?: string): Promise<Patient> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (userRole) headers['x-user-role'] = userRole;
     const res = await fetch(`${API_BASE}/patients/${id}/workflow`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ workflowStatus }),
     });
     return handleResponse<Patient>(res, 'Failed to update workflow status');
