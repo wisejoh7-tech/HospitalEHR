@@ -51,15 +51,16 @@ export default function PatientsList() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
 
+  const isAdmin = profile?.role === 'admin';
+
   useEffect(() => {
     // Set default tab based on role
-    if (profile?.role === 'nurse') setActiveWorkflowTab('vitals');
-    else if (profile?.role === 'doctor') setActiveWorkflowTab('consultation');
-    else if (profile?.role === 'pharmacy') setActiveWorkflowTab('pharmacy');
-    else if (profile?.role === 'record') setActiveWorkflowTab('registered');
-    else if (profile?.role === 'scientist') setActiveWorkflowTab('laboratory');
-    else if (profile?.role === 'radiographer') setActiveWorkflowTab('radiology');
-  }, [profile]);
+    if (isAdmin) {
+      setActiveWorkflowTab('all');
+    } else {
+      setActiveWorkflowTab('all');
+    }
+  }, [profile, isAdmin]);
 
   useEffect(() => {
     return () => {
@@ -236,8 +237,12 @@ export default function PatientsList() {
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 mb-1">Clinical Department Console</h1>
-          <p className="text-gray-500 font-medium text-sm">Manage the movement of patients through clinical departments.</p>
+          <h1 className="text-2xl font-black text-gray-900 mb-1">
+            {isAdmin ? 'Clinical Department Console' : 'Patients'}
+          </h1>
+          <p className="text-gray-500 font-medium text-sm">
+            {isAdmin ? 'Manage the movement of patients through clinical departments.' : 'View patient information and medical records.'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {(profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'nurse') && (
@@ -265,57 +270,63 @@ export default function PatientsList() {
           >
             <Fingerprint size={16} /> Biometric ID
           </button>
-          <button 
-            onClick={seedPatient}
-            className="p-2.5 bg-white border border-gray-100 rounded-xl text-indigo-600 hover:text-indigo-800 shadow-sm"
-            title="Seed Sample Patient"
-          >
-            <Database size={16} />
-          </button>
+          {isAdmin && (
+            <button
+              onClick={seedPatient}
+              className="p-2.5 bg-white border border-gray-100 rounded-xl text-indigo-600 hover:text-indigo-800 shadow-sm"
+              title="Seed Sample Patient"
+            >
+              <Database size={16} />
+            </button>
+          )}
         </div>
       </header>
 
-      {/* Statistics Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-         {filteredSteps.map((step) => {
-           const count = patients.filter(p => p.workflowStatus === step.id).length;
-           return (
-             <div key={step.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                <step.icon size={16} className={cn("mb-2", step.color)} />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{step.label}</p>
-                <p className="text-lg font-black text-gray-900">{count}</p>
-             </div>
-           );
-         })}
-      </div>
+      {/* Statistics Strip - Admin Only */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+           {filteredSteps.map((step) => {
+             const count = patients.filter(p => p.workflowStatus === step.id).length;
+             return (
+               <div key={step.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                  <step.icon size={16} className={cn("mb-2", step.color)} />
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{step.label}</p>
+                  <p className="text-lg font-black text-gray-900">{count}</p>
+               </div>
+             );
+           })}
+        </div>
+      )}
 
       {/* Main Console UI */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
-        {/* Console Tab Bar */}
-        <div className="flex border-b border-gray-50 flex-wrap">
-           <button 
-             onClick={() => setActiveWorkflowTab('all')}
-             className={cn(
-               "px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2",
-               activeWorkflowTab === 'all' ? "border-blue-600 text-blue-600 bg-blue-50/10" : "border-transparent text-gray-400 hover:text-gray-600"
-             )}
-           >
-             Hospital Wide
-           </button>
-           {filteredSteps.map(step => (
+        {/* Console Tab Bar - Admin Only */}
+        {isAdmin && (
+          <div className="flex border-b border-gray-50 flex-wrap">
              <button 
-               key={step.id}
-               onClick={() => setActiveWorkflowTab(step.id)}
+               onClick={() => setActiveWorkflowTab('all')}
                className={cn(
-                 "px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2",
-                 activeWorkflowTab === step.id ? "border-blue-600 text-blue-600 bg-blue-50/10" : "border-transparent text-gray-400 hover:text-gray-600"
+                 "px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2",
+                 activeWorkflowTab === 'all' ? "border-blue-600 text-blue-600 bg-blue-50/10" : "border-transparent text-gray-400 hover:text-gray-600"
                )}
              >
-               <step.icon size={14} />
-               {step.label}
+               Hospital Wide
              </button>
-           ))}
-        </div>
+             {filteredSteps.map(step => (
+               <button
+                 key={step.id}
+                 onClick={() => setActiveWorkflowTab(step.id)}
+                 className={cn(
+                   "px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2",
+                   activeWorkflowTab === step.id ? "border-blue-600 text-blue-600 bg-blue-50/10" : "border-transparent text-gray-400 hover:text-gray-600"
+                 )}
+               >
+                 <step.icon size={14} />
+                 {step.label}
+               </button>
+             ))}
+          </div>
+        )}
 
         {/* Content Controls */}
         <div className="p-4 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/30">
@@ -330,7 +341,7 @@ export default function PatientsList() {
             />
           </div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-            Showing {filtered.length} patients in current department queue
+            Showing {filtered.length} patients
           </p>
         </div>
 
@@ -342,7 +353,7 @@ export default function PatientsList() {
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Clinical Data</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Queue Position</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Queue Status</th>
-                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Workflow Action</th>
+                {isAdmin && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Workflow Action</th>}
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
@@ -413,22 +424,24 @@ export default function PatientsList() {
                          return null;
                        })}
                     </td>
-                    <td className="px-6 py-4">
-                       {nextStage && (
-                         <button 
-                           onClick={(e) => moveWorkflow(e, patient.id, nextStage)}
-                           className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                         >
-                            Send to {nextStepLabel}
-                            <ArrowRightCircle size={14} />
-                         </button>
-                       )}
-                       {!nextStage && patient.workflowStatus === 'discharged' && (
-                         <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
-                            Care Completed
-                         </span>
-                       )}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4">
+                         {nextStage && (
+                           <button
+                             onClick={(e) => moveWorkflow(e, patient.id, nextStage)}
+                             className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                           >
+                              Send to {nextStepLabel}
+                              <ArrowRightCircle size={14} />
+                           </button>
+                         )}
+                         {!nextStage && patient.workflowStatus === 'discharged' && (
+                           <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                              Care Completed
+                           </span>
+                         )}
+                      </td>
+                    )}
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {profile?.role === 'admin' && (
