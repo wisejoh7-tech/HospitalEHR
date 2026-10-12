@@ -147,7 +147,8 @@ export default function StaffLogin() {
       loginManual(userData);
       navigate(getRedirectPath(userData.role));
     } catch (err: any) {
-      const errMsg = err.message || 'Registration failed';
+      console.error('Registration error:', err);
+      const errMsg = err.message || 'Registration failed. Please try again.';
       setError(errMsg);
       if (errMsg.toLowerCase().includes('already registered')) {
         // If phone or email is already registered, suggest switching to Login
