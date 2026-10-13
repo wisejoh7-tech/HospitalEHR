@@ -188,16 +188,16 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
   };
 
   const portalHeaderTitle = isAdmin
-    ? "Admin Login Portal"
-    : "Medical Center Login Portal";
+    ? "Admin Login"
+    : "VIVI medical center login";
 
   const cardHeaderTitle = isAdmin
     ? "System Admin Login"
-    : "Medical Center Login";
+    : "VIVI medical center login";
 
   const cardSubtitle = isAdmin
     ? "Access Your Secure Management Console"
-    : "Access Your Secure Medical Center Dashboard";
+    : "";
 
   return (
     <div
@@ -240,26 +240,9 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
 
               {/* Card Header Section */}
               <div className="bg-[#1a3250] text-white p-5 text-center relative">
-                {/* Logo & Brand Name */}
-                <div className="flex items-center justify-center gap-2.5 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-inner">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-white">
-                      {/* Mortar & Pestle pharma icon */}
-                      <path d="M4 11c0 4.418 3.582 8 8 8s8-3.582 8-8H4z" fill="currentColor" fillOpacity="0.25" />
-                      <path d="M4 11c0 4.418 3.582 8 8 8s8-3.582 8-8H4z" />
-                      <path d="M16 4l-4.5 7" />
-                      <path d="M10 15h4M12 13v4" strokeWidth="2.5" />
-                    </svg>
-                  </div>
-                  <div className="text-left leading-tight">
-                    <span className="block text-base font-extrabold tracking-tight text-white">PharmaCare</span>
-                    <span className="block text-[10px] font-bold text-blue-200 tracking-widest uppercase">Connect</span>
-                  </div>
-                </div>
-
                 {/* Header Titles */}
                 <h2 className="text-lg font-bold text-white tracking-tight">{cardHeaderTitle}</h2>
-                <p className="text-[11px] text-blue-200/90 font-medium mt-0.5">{cardSubtitle}</p>
+                {cardSubtitle && <p className="text-[11px] text-blue-200/90 font-medium mt-0.5">{cardSubtitle}</p>}
               </div>
 
               {/* Card Body */}
@@ -494,7 +477,7 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
                     </button>
                   </p>
                   <p className="text-[9px] text-slate-400">
-                    © 2024 PharmaCare Connect Inc. All Rights Reserved.
+                    © 2024 VIVI Medical Center. All Rights Reserved.
                   </p>
                 </div>
 
