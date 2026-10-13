@@ -47,6 +47,15 @@ export default function Physiotherapy() {
     fetchReferrals();
   }, [filterStatus]);
 
+  const handleSendToDoctor = async (patientId: string) => {
+    try {
+      await apiService.updatePatientWorkflowStatus(patientId, 'consultation', profile?.role);
+      fetchReferrals();
+    } catch (err: any) {
+      alert(err?.message || "Failed to send patient back to doctor");
+    }
+  };
+
   const handleUpdateStatus = async (refId: string, status: string, additionalSessions = 0) => {
     try {
       const ref = referrals.find(r => r.id === refId);
@@ -93,10 +102,14 @@ export default function Physiotherapy() {
     const bodyRegion = ref.bodyRegion?.toLowerCase() || '';
     const treatmentType = ref.treatmentType?.toLowerCase() || '';
 
-    return patientName.includes(query) ||
+    const matchesSearch = patientName.includes(query) ||
            patientId.includes(query) ||
            bodyRegion.includes(query) ||
            treatmentType.includes(query);
+
+    const matchesWorkflow = isAdmin ? true : ref.patient?.workflowStatus === 'physiotherapy';
+
+    return matchesSearch && matchesWorkflow;
   });
 
   const stats = {
@@ -310,6 +323,15 @@ export default function Physiotherapy() {
                     <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
                       <CheckCircle2 size={14} /> Rehabilitation Completed
                     </span>
+                  )}
+
+                  {ref.patientId && (
+                    <button
+                      onClick={() => handleSendToDoctor(ref.patientId)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-xs hover:bg-blue-700 transition-all flex items-center gap-1"
+                    >
+                      Send to Doctor
+                    </button>
                   )}
                 </div>
               </div>

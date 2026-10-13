@@ -250,7 +250,7 @@ export default function PatientDetails() {
       setShowInvModal(false);
 
       // Auto-move to lab/radiology after ordering
-      if (isAdmin && patient?.workflowStatus === 'consultation') {
+      if (patient?.workflowStatus === 'consultation' || isDoctor || isAdmin) {
         try {
           const nextStatus = invType === 'radiology' ? 'radiology' : 'laboratory';
           const updated = await apiService.updatePatientWorkflowStatus(id, nextStatus, profile?.role);
@@ -292,6 +292,14 @@ export default function PatientDetails() {
         priority: 'routine',
         notes: ''
       });
+
+      // Auto-move to physiotherapy stage
+      try {
+        const updated = await apiService.updatePatientWorkflowStatus(id, 'physiotherapy', profile?.role);
+        setPatient(updated);
+      } catch (e) {
+        console.error(e);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -311,7 +319,7 @@ export default function PatientDetails() {
       setRxForm({ medication: '', dosage: '', frequency: '', duration: '' });
 
       // Auto-move to pharmacy stage
-      if (isAdmin && patient?.workflowStatus === 'consultation') {
+      if (patient?.workflowStatus === 'consultation' || isDoctor || isAdmin) {
         try {
           const updated = await apiService.updatePatientWorkflowStatus(id, 'pharmacy', profile?.role);
           setPatient(updated);
@@ -351,7 +359,7 @@ export default function PatientDetails() {
       setVitalsForm({ bp: '', pulse: '', temp: '', resp: '', spo2: '', weight: '' });
 
       // Auto-move to consultation after vitals
-      if (isAdmin && patient?.workflowStatus === 'vitals') {
+      if (patient?.workflowStatus === 'vitals' || isNurse || isAdmin) {
         try {
           const updated = await apiService.updatePatientWorkflowStatus(id, 'consultation', profile?.role);
           setPatient(updated);
@@ -521,7 +529,7 @@ export default function PatientDetails() {
             </button>
           )}
 
-          {isAdmin && (
+          {profile?.role && (
             <div className="flex items-center gap-2 mr-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3">Workflow Status:</span>
                <select 
@@ -541,6 +549,7 @@ export default function PatientDetails() {
                  <option value="consultation">Doctor (Consultation)</option>
                  <option value="laboratory">Laboratory</option>
                  <option value="radiology">Radiology</option>
+                 <option value="physiotherapy">Physiotherapy</option>
                  <option value="treatment">Nursing (Treatment)</option>
                  <option value="pharmacy">Pharmacy</option>
                  <option value="discharged">Completed</option>

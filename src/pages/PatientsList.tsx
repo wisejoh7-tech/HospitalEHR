@@ -30,8 +30,9 @@ const WORKFLOW_STEPS: { id: WorkflowStatus; label: string; icon: any; color: str
   { id: 'registered', label: 'Reception', icon: UserPlus, color: 'text-gray-500', roles: ['admin', 'record'] },
   { id: 'vitals', label: 'Nursing (Pre)', icon: Activity, color: 'text-emerald-500', roles: ['nurse', 'admin'] },
   { id: 'consultation', label: 'Doctor', icon: Stethoscope, color: 'text-blue-500', roles: ['doctor', 'admin'] },
-  { id: 'laboratory', label: 'Laboratory', icon: Database, color: 'text-amber-500', roles: ['scientist', 'admin'] },
-  { id: 'radiology', label: 'Radiology', icon: Camera, color: 'text-cyan-500', roles: ['radiographer', 'admin'] },
+  { id: 'laboratory', label: 'Laboratory', icon: Database, color: 'text-amber-500', roles: ['scientist', 'admin', 'lab'] },
+  { id: 'radiology', label: 'Radiology', icon: Camera, color: 'text-cyan-500', roles: ['radiographer', 'admin', 'radiology'] },
+  { id: 'physiotherapy', label: 'Physiotherapy', icon: Activity, color: 'text-teal-500', roles: ['physiotherapist', 'physio', 'admin'] },
   { id: 'treatment', label: 'Nursing (Care)', icon: Activity, color: 'text-orange-500', roles: ['nurse', 'admin'] },
   { id: 'pharmacy', label: 'Pharmacy', icon: Database, color: 'text-purple-500', roles: ['pharmacy', 'admin'] },
   { id: 'discharged', label: 'Completed', icon: CheckCircle2, color: 'text-gray-400', roles: ['admin'] },
@@ -57,6 +58,8 @@ export default function PatientsList() {
     // Set default tab based on role
     if (isAdmin) {
       setActiveWorkflowTab('all');
+    } else if (profile?.role === 'doctor') {
+      setActiveWorkflowTab('consultation');
     } else {
       setActiveWorkflowTab('all');
     }
@@ -222,7 +225,10 @@ export default function PatientsList() {
                          p.id.toLowerCase().includes(searchLower) ||
                          (p.allergies && p.allergies.some(a => a.toLowerCase().includes(searchLower))) ||
                          (p.status && p.status.toLowerCase().includes(searchLower));
-    const matchesWorkflow = activeWorkflowTab === 'all' || p.workflowStatus === activeWorkflowTab;
+    let matchesWorkflow = activeWorkflowTab === 'all' || p.workflowStatus === activeWorkflowTab;
+    if (profile?.role === 'doctor' && !isAdmin) {
+      matchesWorkflow = p.workflowStatus === 'consultation';
+    }
     return matchesSearch && matchesWorkflow;
   });
 

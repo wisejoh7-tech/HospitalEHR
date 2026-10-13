@@ -27,7 +27,7 @@ export interface Bed {
   patient?: Patient;
 }
 
-export type WorkflowStatus = 'registered' | 'vitals' | 'consultation' | 'laboratory' | 'radiology' | 'treatment' | 'pharmacy' | 'discharged';
+export type WorkflowStatus = 'registered' | 'vitals' | 'consultation' | 'laboratory' | 'radiology' | 'physiotherapy' | 'treatment' | 'pharmacy' | 'discharged';
 
 export interface Patient {
   id: string;
