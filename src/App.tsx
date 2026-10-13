@@ -80,8 +80,8 @@ export default function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-            <Route path="/staff/login" element={<Navigate to="/login" replace />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/staff/login" element={<StaffLogin />} />
             
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/" element={<RoleRedirect />} />
