@@ -353,6 +353,19 @@ async function startServer() {
     }
   });
 
+  app.delete('/api/logs', async (req, res) => {
+    try {
+      const requesterRole = req.headers['x-user-role'];
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Only administrators can clear activity logs.' });
+      }
+      await prisma.auditLog.deleteMany({});
+      res.json({ message: 'Audit logs cleared successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to clear activity logs' });
+    }
+  });
+
   // User Management
   app.get('/api/users', async (req, res) => {
     try {
