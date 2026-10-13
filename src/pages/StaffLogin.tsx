@@ -10,9 +10,7 @@ import {
   User,
   Mail,
   Phone,
-  KeyRound,
   Sparkles,
-  ShieldCheck,
   Lock,
   Hospital
 } from 'lucide-react';
@@ -185,33 +183,21 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
     }
   };
 
-  const fillAdminCredentials = (type: 'email' | 'phone') => {
-    setError(null);
-    setSuccessMsg('Admin credentials pre-filled! Click "Log In" below.');
-    setActiveTab('login');
-    if (type === 'email') {
-      setIdentifier('admin@hospital.com');
-    } else {
-      setIdentifier('08000000000');
-    }
-    setLoginPassword('admin');
-  };
-
   const handleForgotPassword = () => {
     setSuccessMsg('Password reset instructions have been requested. Please contact system administrator.');
   };
 
   const portalHeaderTitle = isAdmin
     ? "Admin Login Portal"
-    : "Pharmacist Login Portal";
+    : "Medical Center Login Portal";
 
   const cardHeaderTitle = isAdmin
     ? "System Admin Login"
-    : "Pharmacist Login";
+    : "Medical Center Login";
 
   const cardSubtitle = isAdmin
     ? "Access Your Secure Management Console"
-    : "Access Your Secure Pharmacy Dashboard";
+    : "Access Your Secure Medical Center Dashboard";
 
   return (
     <div
@@ -279,30 +265,6 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
               {/* Card Body */}
               <div className="p-4 sm:p-5 bg-white space-y-3.5">
 
-                {/* Default Admin Quick Credentials Box */}
-                <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg text-[11px]">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1 font-bold text-blue-900">
-                      <ShieldCheck size={14} className="text-blue-600" />
-                      <span>Quick Demo Admin Access</span>
-                    </div>
-                    <span className="px-1.5 py-0.2 bg-blue-600 text-white font-extrabold text-[9px] rounded uppercase">Default</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1 text-[10px] text-slate-600 mt-1">
-                    <span>Email: <strong className="text-blue-800">admin@hospital.com</strong></span>
-                    <span>Pass: <strong className="text-slate-800">admin</strong></span>
-                  </div>
-                  <div className="mt-1.5 flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => fillAdminCredentials('email')}
-                      className="flex-1 py-1 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded transition-all text-center flex items-center justify-center gap-1"
-                    >
-                      <KeyRound size={11} /> Auto-fill Admin
-                    </button>
-                  </div>
-                </div>
-
                 {/* Tab selector for Login / Register */}
                 <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
                   <button
@@ -354,7 +316,7 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
                     {/* Identifier Input */}
                     <div className="space-y-1">
                       <label className="block text-[11px] font-bold text-slate-700">
-                        Username / Pharmacist ID
+                        Username / Medical Center ID
                       </label>
                       <div className="relative">
                         <input
