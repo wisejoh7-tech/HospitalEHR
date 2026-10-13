@@ -730,8 +730,9 @@ async function startServer() {
   app.patch('/api/patients/:id/workflow', async (req, res) => {
     try {
       const requesterRole = req.headers['x-user-role'];
-      if (requesterRole !== 'admin') {
-        return res.status(403).json({ error: 'Forbidden: Only administrators can update clinical department console workflow status.' });
+      const allowedRoles = ['admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer', 'physiotherapist', 'physio'];
+      if (!requesterRole || !allowedRoles.includes(requesterRole as string)) {
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update workflow status.' });
       }
 
       const { workflowStatus } = req.body;
@@ -739,7 +740,7 @@ async function startServer() {
         where: { id: req.params.id },
         data: { workflowStatus }
       });
-      await logAction('system', 'Clinical Flow', `Moved patient ${patient.name} to ${workflowStatus}`, patient.id, 'Patient');
+      await logAction((requesterRole as string) || 'system', 'Clinical Flow', `Moved patient ${patient.name} to ${workflowStatus}`, patient.id, 'Patient');
       res.json(patient);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update workflow' });

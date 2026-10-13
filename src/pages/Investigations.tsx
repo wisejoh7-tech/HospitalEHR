@@ -49,6 +49,15 @@ export default function Investigations() {
     fetchInv();
   }, [filterType]);
 
+  const handleSendToDoctor = async (patientId: string) => {
+    try {
+      await apiService.updatePatientWorkflowStatus(patientId, 'consultation', profile?.role);
+      fetchInv();
+    } catch (err: any) {
+      alert(err?.message || "Failed to send patient to doctor");
+    }
+  };
+
   const handleUpdateStatus = async (invId: string, status: string, result?: string) => {
     try {
       await apiService.updateInvestigation(invId, { status, result });
@@ -199,7 +208,7 @@ export default function Investigations() {
              <div className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">Scanning Network...</div>
            ) : (
              <div className="grid gap-4">
-                {investigations.map((inv, i) => (
+                {investigations.filter(inv => isAdmin ? true : (inv.patient?.workflowStatus === 'laboratory' || inv.patient?.workflowStatus === 'radiology')).map((inv, i) => (
                    <motion.div
                     key={inv.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -287,6 +296,14 @@ export default function Investigations() {
                               className="px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-gray-800 transition-all"
                             >
                               Review & Close
+                            </button>
+                          )}
+                          {inv.patientId && (
+                            <button
+                              onClick={() => handleSendToDoctor(inv.patientId)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-blue-700 transition-all"
+                            >
+                              Send to Doctor
                             </button>
                           )}
                        </div>

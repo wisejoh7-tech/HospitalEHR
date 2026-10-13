@@ -630,10 +630,26 @@ export default function PatientRegistration() {
             
             <div className="flex flex-col gap-4 max-w-sm mx-auto pt-4">
               <button 
-                onClick={() => navigate('/vitals-record')}
+                onClick={async () => {
+                  try {
+                    await apiService.updatePatientWorkflowStatus(registeredPatient.id, 'vitals');
+                  } catch (e) { console.error(e); }
+                  navigate('/vitals-record');
+                }}
+                className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-xl shadow-emerald-100 hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+              >
+                <Activity size={20} /> Send to Nurses (Vitals)
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await apiService.updatePatientWorkflowStatus(registeredPatient.id, 'consultation');
+                  } catch (e) { console.error(e); }
+                  navigate('/patients');
+                }}
                 className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
               >
-                <Activity size={20} /> Send to Nurses for Vitals
+                <User size={20} /> Send to Doctor (Consultation)
               </button>
               <button 
                 onClick={() => navigate(`/patients/${registeredPatient.id}`)}

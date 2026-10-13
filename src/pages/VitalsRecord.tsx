@@ -14,8 +14,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function VitalsRecord() {
+  const { profile } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,8 +27,8 @@ export default function VitalsRecord() {
     const fetchPatients = async () => {
       try {
         const list = await apiService.getPatients();
-        // Specifically look for patients whose workflow status is 'vitals'
-        setPatients(list.filter(p => p.workflowStatus === 'vitals'));
+        // Specifically look for patients whose workflow status is 'vitals' or 'treatment'
+        setPatients(list.filter(p => p.workflowStatus === 'vitals' || p.workflowStatus === 'treatment'));
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -142,9 +144,31 @@ export default function VitalsRecord() {
               </div>
             </div>
 
-            <button className="w-full py-2.5 sm:py-3 bg-gray-900 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow group-hover:bg-blue-600 transition-colors">
-              Record Measurements
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/patients/${patient.id}?recordVitals=true`);
+                }}
+                className="flex-1 py-2.5 sm:py-3 bg-gray-900 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow hover:bg-gray-800 transition-colors"
+              >
+                Record Vitals
+              </button>
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await apiService.updatePatientWorkflowStatus(patient.id, 'consultation', profile?.role);
+                    setPatients(prev => prev.filter(p => p.id !== patient.id));
+                  } catch (err: any) {
+                    alert(err?.message || "Failed to send patient to doctor");
+                  }
+                }}
+                className="flex-1 py-2.5 sm:py-3 bg-blue-600 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow hover:bg-blue-700 transition-colors"
+              >
+                Send to Doctor
+              </button>
+            </div>
           </motion.div>
         ))}
 

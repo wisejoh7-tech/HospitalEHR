@@ -144,7 +144,9 @@ export default function Pharmacy() {
     const matchesDate = (!startDate || new Date(rx.createdAt) >= new Date(startDate)) &&
                        (!endDate || new Date(rx.createdAt) <= new Date(endDate + 'T23:59:59'));
 
-    return matchesSearch && matchesDate;
+    const matchesPharmacyWorkflow = isAdmin ? true : rx.patient?.workflowStatus === 'pharmacy';
+
+    return matchesSearch && matchesDate && matchesPharmacyWorkflow;
   });
 
   const todayStr = new Date().toISOString().split('T')[0];
