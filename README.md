@@ -86,6 +86,49 @@ VITE_API_BASE_URL="https://cbt-9v2x.onrender.com"
 
 ---
 
+## Desktop Application (Electron)
+
+The application can be run and packaged as a desktop application using **Electron**.
+
+- **Desktop Entry Point:** `electron/main.js`
+
+### Run Desktop App in Development Mode:
+```bash
+npm run electron:dev
+```
+
+### Build Desktop Binaries:
+```bash
+npm run electron:build
+```
+Executables/installers will be packaged into the `dist-electron/` folder.
+
+---
+
+## Mobile Applications (Capacitor)
+
+The application supports native mobile builds for **Android** and **iOS** powered by **Capacitor**.
+
+- **Capacitor Configuration:** `capacitor.config.ts`
+
+### Synchronize Web Build with Mobile Assets:
+```bash
+npm run cap:sync
+```
+
+### Open Native IDEs:
+- **Android Studio:**
+  ```bash
+  npm run cap:open:android
+  ```
+- **Xcode (macOS only):**
+  ```bash
+  npm run cap:add:ios # if ios project is not yet added
+  npm run cap:open:ios
+  ```
+
+---
+
 ## Production Deployment
 
 ### Option A: Monolithic Web Service (Backend serving Static Frontend)
