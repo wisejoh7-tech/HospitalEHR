@@ -221,8 +221,12 @@ export default function PatientsList() {
   });
 
   const filtered = patients.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                         p.id.toLowerCase().includes(search.toLowerCase());
+    const searchLower = search.toLowerCase().trim();
+    const matchesSearch = !searchLower ||
+                         p.name.toLowerCase().includes(searchLower) ||
+                         p.id.toLowerCase().includes(searchLower) ||
+                         (p.allergies && p.allergies.some(a => a.toLowerCase().includes(searchLower))) ||
+                         (p.status && p.status.toLowerCase().includes(searchLower));
     const matchesWorkflow = activeWorkflowTab === 'all' || p.workflowStatus === activeWorkflowTab;
     return matchesSearch && matchesWorkflow;
   });
