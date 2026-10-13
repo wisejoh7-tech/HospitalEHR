@@ -95,7 +95,7 @@ export default function ClinicalTrials() {
             nurses: ['RN Nurse Grace Amadi', 'RN Nurse Chukwudi Eze'],
             scientists: ['Dr. Amina Abubakar (Lead Bio-Researcher)', 'Dr. Kenji Sato'],
             pharmacists: ['Pharm. Samuel Okon', 'Pharm. Blessing Idowu'],
-            physiotherapists: ['PT David Olatunji', 'PT Joy Nwachukwu']
+            physiotherapists: []
           }
         },
         {
