@@ -181,7 +181,7 @@ export default function StaffLogin() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-3 sm:p-4 relative overflow-hidden bg-cover bg-center"
-      style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1200')` }}
+      style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1920')` }}
     >
       <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"></div>
       

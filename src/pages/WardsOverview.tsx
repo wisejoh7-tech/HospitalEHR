@@ -112,10 +112,45 @@ export default function WardsOverview() {
 
   return (
     <div className="space-y-4 sm:space-y-8">
+      {/* Ward / Nursing Care Department Banner */}
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-blue-100 bg-white">
+        <div className="flex flex-col md:flex-row">
+          <div className="md:w-1/3 h-48 md:h-auto relative overflow-hidden shrink-0">
+            <img
+              src="https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&q=80&w=800"
+              alt="Nurse In-Charge Ward Care"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent md:hidden"></div>
+            <div className="absolute bottom-3 left-3 md:hidden">
+              <span className="px-2.5 py-1 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                Inpatient Wards Unit
+              </span>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-black uppercase tracking-widest mb-2">
+                <Building2 size={12} /> Nursing Wards & Inpatient Station
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Ward Management Terminal</h1>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                Managed by Ward Charge Nurse & Clinical Staff • Real-time Inpatient Bed Tracking, Capacity & Occupancy
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+                <span>Ward Occupancy: <strong className="text-blue-700 font-black">{occupancyStats.occupiedBeds} / {occupancyStats.totalBeds} Beds Occupied</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">Ward Management Terminal</h1>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium tracking-tight">Real-time floor layout and patient bed assignments.</p>
+          <h2 className="text-base sm:text-lg font-black text-gray-900 mb-0.5">Hospital Wards Layout</h2>
         </div>
         <div className="flex gap-2 shrink-0">
           {canManage && (

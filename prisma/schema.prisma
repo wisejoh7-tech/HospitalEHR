@@ -66,6 +66,24 @@ model Patient {
   treatmentPlans TreatmentPlan[]
   reviews       Review[]
   appointments  Appointment[]
+  physiotherapyReferrals PhysiotherapyReferral[]
+}
+
+model PhysiotherapyReferral {
+  id                 String   @id @default(uuid())
+  patientId          String
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  referredBy         String
+  clinicalIndication String
+  bodyRegion         String
+  treatmentType      String
+  sessionsRequested  Int      @default(1)
+  sessionsCompleted  Int      @default(0)
+  priority           String   @default("routine")
+  status             String   @default("pending")
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Appointment {

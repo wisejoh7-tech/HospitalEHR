@@ -138,14 +138,14 @@ export default function Logs() {
   const isAdmin = profile?.role === 'admin';
 
   return (
-    <div className="space-y-8 animate-in mt-20">
+    <div className="space-y-8 animate-in mt-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">System Audit Logs</h1>
-          <p className="text-gray-500 font-medium tracking-tight">Comprehensive record of administrative actions and staff user management.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">System Audit Logs</h1>
+          <p className="text-xs sm:text-sm text-gray-500 font-medium tracking-tight">Comprehensive record of administrative actions and staff user management.</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl shrink-0 self-start md:self-auto">
+        <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl shrink-0 self-start md:self-auto overflow-x-auto max-w-full">
           <button
             onClick={() => setActiveTab('logs')}
             className={cn(

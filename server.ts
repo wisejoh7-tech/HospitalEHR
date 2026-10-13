@@ -1049,6 +1049,68 @@ async function startServer() {
     }
   });
 
+  // Physiotherapy Endpoints
+  app.get('/api/physiotherapy/referrals', async (req, res) => {
+    try {
+      const { status, patientId } = req.query;
+      const referrals = await prisma.physiotherapyReferral.findMany({
+        where: {
+          ...(status && { status: status as string }),
+          ...(patientId && { patientId: patientId as string }),
+        },
+        include: { patient: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(referrals);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch physiotherapy referrals' });
+    }
+  });
+
+  app.post('/api/patients/:id/physiotherapy', async (req, res) => {
+    try {
+      const { referredBy, clinicalIndication, bodyRegion, treatmentType, sessionsRequested, priority, notes } = req.body;
+      const referral = await prisma.physiotherapyReferral.create({
+        data: {
+          patientId: req.params.id,
+          referredBy: referredBy || 'Doctor',
+          clinicalIndication: clinicalIndication || 'Rehabilitation',
+          bodyRegion: bodyRegion || 'General',
+          treatmentType: treatmentType || 'Manual Therapy',
+          sessionsRequested: parseInt(sessionsRequested) || 1,
+          sessionsCompleted: 0,
+          priority: priority || 'routine',
+          status: 'pending',
+          notes
+        },
+        include: { patient: true }
+      });
+
+      await logAction('system', referredBy || 'Doctor', `Referred patient to Physiotherapy for ${bodyRegion}`, req.params.id, 'Patient');
+      res.status(201).json(referral);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create physiotherapy referral' });
+    }
+  });
+
+  app.patch('/api/physiotherapy/referrals/:id', async (req, res) => {
+    try {
+      const { status, sessionsCompleted, notes } = req.body;
+      const updated = await prisma.physiotherapyReferral.update({
+        where: { id: req.params.id },
+        data: {
+          ...(status && { status }),
+          ...(sessionsCompleted !== undefined && { sessionsCompleted: parseInt(sessionsCompleted) }),
+          ...(notes && { notes })
+        },
+        include: { patient: true }
+      });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update physiotherapy referral' });
+    }
+  });
+
   // Investigations
   app.get('/api/investigations', async (req, res) => {
     try {
@@ -1281,6 +1343,7 @@ async function startServer() {
           bills: { include: { items: true }, orderBy: { createdAt: 'desc' } },
           treatmentPlans: { orderBy: { createdAt: 'desc' } },
           reviews: { orderBy: { createdAt: 'desc' } },
+          physiotherapyReferrals: { orderBy: { createdAt: 'desc' } },
           bed: true
         }
       });

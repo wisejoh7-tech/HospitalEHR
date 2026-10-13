@@ -1,4 +1,4 @@
-export type UserRole = 'doctor' | 'nurse' | 'admin' | 'record' | 'pharmacy' | 'pharmacy_admin' | 'lab' | 'radiology';
+export type UserRole = 'doctor' | 'nurse' | 'admin' | 'record' | 'pharmacy' | 'pharmacy_admin' | 'lab' | 'radiology' | 'physiotherapist' | 'physio';
 
 export interface UserProfile {
   uid?: string;
@@ -59,6 +59,24 @@ export interface Patient {
   treatmentPlans?: TreatmentPlan[];
   reviews?: Review[];
   appointments?: Appointment[];
+  physiotherapyReferrals?: PhysiotherapyReferral[];
+}
+
+export interface PhysiotherapyReferral {
+  id: string;
+  patientId: string;
+  patient?: Patient;
+  referredBy: string;
+  clinicalIndication: string;
+  bodyRegion: string;
+  treatmentType: string;
+  sessionsRequested: number;
+  sessionsCompleted: number;
+  priority: 'routine' | 'urgent' | 'emergency';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';

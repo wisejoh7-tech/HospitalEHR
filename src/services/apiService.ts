@@ -138,6 +138,30 @@ export const apiService = {
     return handleResponse<any>(res, 'Failed to update bed status');
   },
 
+  async getPhysiotherapyReferrals(query?: { status?: string, patientId?: string }): Promise<any[]> {
+    const params = new URLSearchParams(query as any).toString();
+    const res = await fetch(`${API_BASE}/physiotherapy/referrals?${params}`);
+    return handleResponse<any[]>(res, 'Failed to fetch physiotherapy referrals');
+  },
+
+  async createPhysiotherapyReferral(patientId: string, data: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/patients/${patientId}/physiotherapy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(res, 'Failed to create physiotherapy referral');
+  },
+
+  async updatePhysiotherapyReferral(id: string, data: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/physiotherapy/referrals/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(res, 'Failed to update physiotherapy referral');
+  },
+
   async getInvestigations(query?: { type?: string, status?: string }): Promise<(Investigation & { patient: Patient })[]> {
     const params = new URLSearchParams(query as any).toString();
     const res = await fetch(`${API_BASE}/investigations?${params}`);

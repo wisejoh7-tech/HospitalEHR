@@ -43,10 +43,46 @@ export default function VitalsRecord() {
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+      {/* Department Banner & Nurse Specialist Card */}
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-emerald-100 bg-white">
+        <div className="flex flex-col md:flex-row">
+          <div className="md:w-1/3 h-48 md:h-auto relative overflow-hidden shrink-0">
+            <img
+              src="https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&q=80&w=800"
+              alt="Nursing Care Specialist"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent md:hidden"></div>
+            <div className="absolute bottom-3 left-3 md:hidden">
+              <span className="px-2.5 py-1 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                Nursing Care Unit
+              </span>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-widest mb-2">
+                <Activity size={12} /> Nursing & Clinical Observation Desk
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Nurses' Clinical Station & Vitals</h1>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                Managed by Nurse Officer In-Charge • Pre-consultation Triage & Patient Vital Signs Monitoring
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                <span>Nursing Queue Active: <strong className="text-emerald-700 font-black">{filtered.length} Patients</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-lg sm:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">Vital Signs Recording</h1>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium tracking-tight">Record essential observations for patients before consultation.</p>
+          <h2 className="text-base sm:text-lg font-black text-gray-900 mb-0.5">Vitals Queue</h2>
+          <p className="text-xs text-gray-500 font-medium tracking-tight">Select a patient to measure temperature, blood pressure, pulse, respiration, and oxygen saturation.</p>
         </div>
         <div className="relative w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -55,7 +91,7 @@ export default function VitalsRecord() {
             placeholder="Search Patient Name or ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 bg-white border border-gray-100 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-64 shadow-sm transition-all"
+            className="pl-9 pr-3 py-2 bg-white border border-gray-100 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-64 shadow-sm transition-all font-bold"
           />
         </div>
       </header>
