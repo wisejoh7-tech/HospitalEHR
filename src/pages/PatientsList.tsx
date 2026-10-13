@@ -157,10 +157,10 @@ export default function PatientsList() {
   const moveWorkflow = async (e: React.MouseEvent, id: string, nextStatus: WorkflowStatus) => {
     e.stopPropagation();
     try {
-      await apiService.updatePatientWorkflowStatus(id, nextStatus);
+      await apiService.updatePatientWorkflowStatus(id, nextStatus, profile?.role);
       fetchPatients();
-    } catch (err) {
-      alert("Failed to move patient to next department");
+    } catch (err: any) {
+      alert(err?.message || "Failed to move patient to next department");
     }
   };
 

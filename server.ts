@@ -729,6 +729,11 @@ async function startServer() {
 
   app.patch('/api/patients/:id/workflow', async (req, res) => {
     try {
+      const requesterRole = req.headers['x-user-role'];
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Only administrators can update clinical department console workflow status.' });
+      }
+
       const { workflowStatus } = req.body;
       const patient = await prisma.patient.update({
         where: { id: req.params.id },
