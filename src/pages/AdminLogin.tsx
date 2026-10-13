@@ -1,6 +1,6 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import StaffLogin from './StaffLogin';
 
 export default function AdminLogin() {
-  return <Navigate to="/login" replace />;
+  return <StaffLogin isAdmin={true} />;
 }

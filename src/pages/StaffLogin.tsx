@@ -1,13 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hospital, LogIn, ShieldAlert, Eye, EyeOff, UserCircle, UserPlus, User, Mail, Phone, KeyRound, Sparkles, ShieldCheck } from 'lucide-react';
+import {
+  LogIn,
+  ShieldAlert,
+  Eye,
+  EyeOff,
+  UserCircle,
+  UserPlus,
+  User,
+  Mail,
+  Phone,
+  KeyRound,
+  Sparkles,
+  ShieldCheck,
+  Lock,
+  Hospital
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { apiService } from '../services/apiService';
 import { UserRole } from '../types';
 import { cn } from '../lib/utils';
 
-export default function StaffLogin() {
+interface StaffLoginProps {
+  isAdmin?: boolean;
+}
+
+export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
   const { profile, loginManual } = useAuth();
   const navigate = useNavigate();
 
@@ -33,6 +52,7 @@ export default function StaffLogin() {
   }, [profile, navigate]);
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Login form states
   const [identifier, setIdentifier] = useState('');
@@ -43,7 +63,7 @@ export default function StaffLogin() {
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('admin');
+  const [regRole, setRegRole] = useState<UserRole>(isAdmin ? 'admin' : 'pharmacy');
 
   // Common UI states
   const [showPassword, setShowPassword] = useState(false);
@@ -72,7 +92,7 @@ export default function StaffLogin() {
     const cleanPassword = loginPassword.trim();
 
     if (!cleanIdentifier || !cleanPassword) {
-      setError('Please provide your email/phone and password');
+      setError('Please provide your Username / ID / Email and password');
       setIsSubmitting(false);
       return;
     }
@@ -84,7 +104,7 @@ export default function StaffLogin() {
       });
 
       if (!userData) {
-        throw new Error('Invalid email/phone or password');
+        throw new Error('Invalid credentials');
       }
 
       if (!userData.role) {
@@ -152,7 +172,6 @@ export default function StaffLogin() {
       const errMsg = err.message || 'Registration failed. Please try again.';
       setError(errMsg);
       if (errMsg.toLowerCase().includes('already registered')) {
-        // If phone or email is already registered, suggest switching to Login
         const existingIdent = cleanPhone || cleanEmail;
         if (existingIdent) {
           setIdentifier(existingIdent);
@@ -168,7 +187,7 @@ export default function StaffLogin() {
 
   const fillAdminCredentials = (type: 'email' | 'phone') => {
     setError(null);
-    setSuccessMsg('Admin credentials pre-filled! Click "Sign In" below.');
+    setSuccessMsg('Admin credentials pre-filled! Click "Log In" below.');
     setActiveTab('login');
     if (type === 'email') {
       setIdentifier('admin@hospital.com');
@@ -178,291 +197,355 @@ export default function StaffLogin() {
     setLoginPassword('admin');
   };
 
+  const handleForgotPassword = () => {
+    setSuccessMsg('Password reset instructions have been requested. Please contact system administrator.');
+  };
+
+  const portalHeaderTitle = isAdmin
+    ? "Admin Login Portal"
+    : "Pharmacist Login Portal";
+
+  const cardHeaderTitle = isAdmin
+    ? "System Admin Login"
+    : "Pharmacist Login";
+
+  const cardSubtitle = isAdmin
+    ? "Access Your Secure Management Console"
+    : "Access Your Secure Pharmacy Dashboard";
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-3 sm:p-4 relative overflow-hidden bg-cover bg-center"
-      style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1920')` }}
+      className="min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 relative overflow-hidden bg-cover bg-center font-sans"
+      style={{
+        backgroundImage: `url('https://images.unsplash.com/photo-1586015555751-63bb77f4322a?auto=format&fit=crop&q=80&w=1920')`
+      }}
     >
-      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"></div>
-      
-      <motion.div 
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 sm:p-6 relative z-10 border border-gray-100"
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"></div>
+
+      {/* Floating Header Title above Laptop Frame */}
+      <motion.h1
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="relative z-10 text-2xl sm:text-3xl md:text-4xl font-extrabold text-blue-900 drop-shadow-md mb-4 text-center tracking-tight"
+        style={{ color: '#1a3250' }}
       >
-        <div className="text-center mb-4">
-          <div className="inline-flex p-3 bg-gradient-to-tr from-blue-700 to-indigo-600 rounded-2xl text-white mb-2 shadow-lg shadow-blue-500/20">
-            <Hospital size={28} />
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Hospital Portal</h1>
-          <p className="text-xs text-gray-500 font-medium tracking-tight mt-0.5">
-            Clinical & Administrative Access
-          </p>
-        </div>
+        {portalHeaderTitle}
+      </motion.h1>
 
-        {/* Admin Login Details Banner */}
-        <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-xl">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5 text-blue-900 font-bold text-xs">
-              <ShieldCheck size={16} className="text-blue-600 shrink-0" />
-              <span>Admin Login Details</span>
-            </div>
-            <span className="px-2 py-0.5 bg-blue-600 text-white font-extrabold text-[10px] rounded-full uppercase tracking-wider">Default</span>
+      {/* Laptop Mockup Bezel Outer Frame */}
+      <motion.div 
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="relative z-10 w-full max-w-lg mx-auto"
+      >
+        {/* Laptop Screen Bezel */}
+        <div className="bg-slate-950 rounded-[28px] sm:rounded-[34px] p-3 sm:p-4 shadow-2xl border-4 border-slate-700/80 ring-1 ring-white/20 relative">
+          {/* Webcam Camera Dot */}
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-800 border border-slate-700 mx-auto mb-2 flex items-center justify-center">
+            <div className="w-1 h-1 rounded-full bg-blue-900/80"></div>
           </div>
 
-          <div className="text-[11px] text-gray-700 space-y-1 font-mono bg-white/70 p-2 rounded-lg border border-blue-100">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-sans font-medium">Email:</span>
-              <button
-                type="button"
-                onClick={() => fillAdminCredentials('email')}
-                className="font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
-                title="Click to fill email"
-              >
-                admin@hospital.com <Sparkles size={11} className="text-amber-500" />
-              </button>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-sans font-medium">Phone:</span>
-              <button
-                type="button"
-                onClick={() => fillAdminCredentials('phone')}
-                className="font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
-                title="Click to fill phone"
-              >
-                08000000000 <Sparkles size={11} className="text-amber-500" />
-              </button>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-sans font-medium">Password:</span>
-              <span className="font-bold text-slate-900">admin</span>
-            </div>
-          </div>
+          {/* Screen Content Container */}
+          <div className="bg-slate-100 rounded-[20px] sm:rounded-[24px] overflow-hidden p-3 sm:p-5 relative shadow-inner">
 
-          <div className="mt-2 flex flex-col sm:flex-row gap-2">
-            <button
-              type="button"
-              onClick={() => fillAdminCredentials('email')}
-              className="flex-1 py-1.5 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg transition-all border border-blue-700 text-center flex items-center justify-center gap-1 shadow-2xs"
-            >
-              <KeyRound size={12} />
-              Auto-fill Admin (Email)
-            </button>
-            <button
-              type="button"
-              onClick={() => fillAdminCredentials('phone')}
-              className="flex-1 py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg transition-all border border-indigo-700 text-center flex items-center justify-center gap-1 shadow-2xs"
-            >
-              <Phone size={12} />
-              Auto-fill Admin (Phone)
-            </button>
-          </div>
-        </div>
+            {/* Main Login Card */}
+            <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200/80 max-w-sm mx-auto">
 
-        {/* Tab Navigation for Login and Register on same page */}
-        <div className="flex bg-gray-100 p-1 rounded-xl mb-4 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
-            className={cn(
-              "flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 border",
-              activeTab === 'login'
-                ? "bg-white text-blue-700 border-gray-300 shadow-2xs font-black"
-                : "border-transparent text-gray-500 hover:text-gray-800"
-            )}
-          >
-            <LogIn size={15} />
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
-            className={cn(
-              "flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 border",
-              activeTab === 'register'
-                ? "bg-white text-blue-700 border-gray-300 shadow-2xs font-black"
-                : "border-transparent text-gray-500 hover:text-gray-800"
-            )}
-          >
-            <UserPlus size={15} />
-            Register
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-2.5 bg-red-50 border border-red-100 rounded-lg flex flex-col gap-1.5 text-red-600">
-            <div className="flex gap-2 items-start">
-              <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-              <p className="text-xs font-medium leading-tight">{error}</p>
-            </div>
-            {error.toLowerCase().includes('already registered') && activeTab === 'register' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('login');
-                  setError(null);
-                  if (!loginPassword) setLoginPassword('admin');
-                  setSuccessMsg('Phone/Email pre-filled. Please click Sign In to enter.');
-                }}
-                className="mt-1 text-xs font-bold text-blue-700 underline hover:text-blue-800 text-left cursor-pointer"
-              >
-                → Already registered? Click here to Sign In
-              </button>
-            )}
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="mb-4 p-2.5 bg-emerald-50 border border-emerald-100 rounded-lg flex gap-2 text-emerald-700 items-center">
-            <Sparkles size={16} className="shrink-0" />
-            <p className="text-xs font-semibold leading-tight">{successMsg}</p>
-          </div>
-        )}
-
-        {activeTab === 'login' ? (
-          <form onSubmit={handleLogin} className="space-y-3.5">
-            <div className="space-y-1">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                Email Address or Phone Number
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="admin@hospital.com or 08000000000"
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-9"
-                  required
-                />
-                <UserCircle size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 text-xs rounded-xl transition-all border border-blue-700 shadow-xs flex items-center justify-center gap-2 mt-2"
-            >
-              {isSubmitting ? 'Authenticating...' : 'Sign In'}
-              <LogIn size={16} />
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleRegister} className="space-y-3">
-            <div className="space-y-1">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Full Name</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  placeholder="Dr. John Doe"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-9"
-                  required
-                />
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Email Address</label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="user@hospital.com"
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-8"
-                  />
-                  <Mail size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              {/* Card Header Section */}
+              <div className="bg-[#1a3250] text-white p-5 text-center relative">
+                {/* Logo & Brand Name */}
+                <div className="flex items-center justify-center gap-2.5 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-inner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-white">
+                      {/* Mortar & Pestle pharma icon */}
+                      <path d="M4 11c0 4.418 3.582 8 8 8s8-3.582 8-8H4z" fill="currentColor" fillOpacity="0.25" />
+                      <path d="M4 11c0 4.418 3.582 8 8 8s8-3.582 8-8H4z" />
+                      <path d="M16 4l-4.5 7" />
+                      <path d="M10 15h4M12 13v4" strokeWidth="2.5" />
+                    </svg>
+                  </div>
+                  <div className="text-left leading-tight">
+                    <span className="block text-base font-extrabold tracking-tight text-white">PharmaCare</span>
+                    <span className="block text-[10px] font-bold text-blue-200 tracking-widest uppercase">Connect</span>
+                  </div>
                 </div>
+
+                {/* Header Titles */}
+                <h2 className="text-lg font-bold text-white tracking-tight">{cardHeaderTitle}</h2>
+                <p className="text-[11px] text-blue-200/90 font-medium mt-0.5">{cardSubtitle}</p>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Phone Number</label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    placeholder="08000000000"
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pl-8"
-                  />
-                  <Phone size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              {/* Card Body */}
+              <div className="p-4 sm:p-5 bg-white space-y-3.5">
+
+                {/* Default Admin Quick Credentials Box */}
+                <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg text-[11px]">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1 font-bold text-blue-900">
+                      <ShieldCheck size={14} className="text-blue-600" />
+                      <span>Quick Demo Admin Access</span>
+                    </div>
+                    <span className="px-1.5 py-0.2 bg-blue-600 text-white font-extrabold text-[9px] rounded uppercase">Default</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1 text-[10px] text-slate-600 mt-1">
+                    <span>Email: <strong className="text-blue-800">admin@hospital.com</strong></span>
+                    <span>Pass: <strong className="text-slate-800">admin</strong></span>
+                  </div>
+                  <div className="mt-1.5 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => fillAdminCredentials('email')}
+                      className="flex-1 py-1 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded transition-all text-center flex items-center justify-center gap-1"
+                    >
+                      <KeyRound size={11} /> Auto-fill Admin
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8"
-                    required
-                  />
+                {/* Tab selector for Login / Register */}
+                <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 text-[11px]",
+                      activeTab === 'login'
+                        ? "bg-white text-[#1a3250] shadow-xs font-extrabold"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
                   >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    <LogIn size={13} />
+                    Log In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 text-[11px]",
+                      activeTab === 'register'
+                        ? "bg-white text-[#1a3250] shadow-xs font-extrabold"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    <UserPlus size={13} />
+                    Register
                   </button>
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Role</label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value as UserRole)}
-                  className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all"
-                >
-                  {rolesList.map(r => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
+                {/* Error Banner */}
+                {error && (
+                  <div className="p-2 bg-red-50 border border-red-100 rounded-lg flex items-start gap-1.5 text-red-600 text-xs">
+                    <ShieldAlert size={15} className="shrink-0 mt-0.5" />
+                    <p className="leading-tight text-[11px] font-medium">{error}</p>
+                  </div>
+                )}
+
+                {/* Success Banner */}
+                {successMsg && (
+                  <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-1.5 text-emerald-700 text-xs">
+                    <Sparkles size={15} className="shrink-0 text-emerald-600" />
+                    <p className="leading-tight text-[11px] font-medium">{successMsg}</p>
+                  </div>
+                )}
+
+                {activeTab === 'login' ? (
+                  <form onSubmit={handleLogin} className="space-y-3">
+                    {/* Identifier Input */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-slate-700">
+                        Username / Pharmacist ID
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          placeholder="e.g., P12345 or admin@hospital.com"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all pl-9 text-slate-800 placeholder:text-slate-400"
+                          required
+                        />
+                        <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      </div>
+                    </div>
+
+                    {/* Password Input */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-slate-700">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all pl-9 pr-9 text-slate-800"
+                          required
+                        />
+                        <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Remember Me & Forgot Password Row */}
+                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                      <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 font-medium select-none">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-blue-800 focus:ring-blue-500"
+                        />
+                        <span>Remember Me</span>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        className="text-blue-700 hover:underline font-bold text-[11px]"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+
+                    {/* Log In Button */}
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-[#1a3250] hover:bg-[#12243b] text-white font-bold py-2.5 text-xs rounded-lg transition-all shadow-md flex items-center justify-center gap-2 mt-2"
+                    >
+                      {isSubmitting ? 'Authenticating...' : 'Log In'}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleRegister} className="space-y-2.5">
+                    <div className="space-y-0.5">
+                      <label className="block text-[10px] font-bold text-slate-600">Full Name</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          placeholder="Dr. Jane Doe"
+                          className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all pl-8"
+                          required
+                        />
+                        <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="block text-[10px] font-bold text-slate-600">Email Address</label>
+                        <div className="relative">
+                          <input
+                            type="email"
+                            value={regEmail}
+                            onChange={(e) => setRegEmail(e.target.value)}
+                            placeholder="user@hospital.com"
+                            className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all pl-7"
+                          />
+                          <Mail size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <label className="block text-[10px] font-bold text-slate-600">Phone Number</label>
+                        <div className="relative">
+                          <input
+                            type="tel"
+                            value={regPhone}
+                            onChange={(e) => setRegPhone(e.target.value)}
+                            placeholder="08000000000"
+                            className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all pl-7"
+                          />
+                          <Phone size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="block text-[10px] font-bold text-slate-600">Password</label>
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all pr-7"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                          >
+                            {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <label className="block text-[10px] font-bold text-slate-600">Role</label>
+                        <select
+                          value={regRole}
+                          onChange={(e) => setRegRole(e.target.value as UserRole)}
+                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all"
+                        >
+                          {rolesList.map(r => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-[#1a3250] hover:bg-[#12243b] text-white font-bold py-2 text-xs rounded-lg transition-all shadow-md flex items-center justify-center gap-2 mt-2"
+                    >
+                      {isSubmitting ? 'Registering...' : 'Register Account'}
+                    </button>
+                  </form>
+                )}
+
+                {/* Card Footer Section */}
+                <div className="pt-2 text-center text-[10px] text-slate-500 space-y-1 border-t border-slate-100">
+                  <p>
+                    Don't have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(activeTab === 'login' ? 'register' : 'login');
+                      }}
+                      className="text-blue-700 hover:underline font-bold"
+                    >
+                      Contact Administrator
+                    </button>
+                  </p>
+                  <p className="text-[9px] text-slate-400">
+                    © 2024 PharmaCare Connect Inc. All Rights Reserved.
+                  </p>
+                </div>
+
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 text-xs rounded-xl transition-all border border-blue-700 shadow-xs flex items-center justify-center gap-2 mt-2"
-            >
-              {isSubmitting ? 'Registering...' : 'Register Account'}
-              <UserPlus size={16} />
-            </button>
-          </form>
-        )}
+          </div>
+        </div>
+
+        {/* Laptop Bottom Deck Base */}
+        <div className="w-[106%] -ml-[3%] h-4 sm:h-5 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 rounded-b-2xl shadow-xl border-t border-slate-400/60 flex justify-center items-center relative z-0">
+          <div className="w-16 sm:w-20 h-1 bg-slate-500/50 rounded-full"></div>
+        </div>
       </motion.div>
     </div>
   );
