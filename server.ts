@@ -1014,6 +1014,24 @@ async function startServer() {
     }
   });
 
+  app.patch('/api/inventory/category/rename', async (req, res) => {
+    try {
+      const { oldCategory, newCategory } = req.body;
+      if (!oldCategory || !newCategory) {
+        return res.status(400).json({ error: 'Both oldCategory and newCategory are required' });
+      }
+      const result = await prisma.inventory.updateMany({
+        where: { category: oldCategory },
+        data: { category: newCategory }
+      });
+      await logAction('system', 'Pharmacy', `Renamed inventory category from "${oldCategory}" to "${newCategory}"`, undefined, 'Inventory');
+      res.json({ message: 'Category renamed successfully', count: result.count });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to rename category' });
+    }
+  });
+
   app.patch('/api/inventory/:id', async (req, res) => {
     try {
       const { name, category, stockLevel, unit, description, expiryDate, price } = req.body;
@@ -1033,6 +1051,19 @@ async function startServer() {
       res.json(item);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update inventory item' });
+    }
+  });
+
+  app.delete('/api/inventory/:id', async (req, res) => {
+    try {
+      const item = await prisma.inventory.delete({
+        where: { id: req.params.id }
+      });
+      await logAction('system', 'Pharmacy', `Deleted inventory item: ${item.name}`, item.id, 'Inventory');
+      res.json({ message: 'Inventory item deleted successfully' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to delete inventory item' });
     }
   });
 

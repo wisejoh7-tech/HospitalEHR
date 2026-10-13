@@ -320,6 +320,22 @@ export const apiService = {
     return handleResponse<any>(res, 'Failed to update inventory item');
   },
 
+  async deleteInventoryItem(id: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/inventory/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(res, 'Failed to delete inventory item');
+  },
+
+  async renameCategory(oldCategory: string, newCategory: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/inventory/category/rename`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldCategory, newCategory }),
+    });
+    return handleResponse<any>(res, 'Failed to rename category');
+  },
+
   async getPrescriptions(query?: { status?: string }): Promise<any[]> {
     const params = new URLSearchParams(query as any).toString();
     const res = await fetch(`${API_BASE}/prescriptions?${params}`);

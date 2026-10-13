@@ -9,7 +9,11 @@ import {
   AlertCircle,
   PackageCheck,
   User,
-  Calendar
+  Calendar,
+  Edit3,
+  Trash2,
+  FolderEdit,
+  Tag
 } from 'lucide-react';
 import { cn, formatDate } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,9 +33,15 @@ export default function Pharmacy() {
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [newItem, setNewItem] = useState({ name: '', category: '', stockLevel: '', unit: '', description: '', expiryDate: '', price: '' });
 
   const fetchData = async () => {
@@ -65,6 +75,32 @@ export default function Pharmacy() {
       });
       setShowAddModal(false);
       setNewItem({ name: '', category: '', stockLevel: '', unit: '', description: '', expiryDate: '', price: '' });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!deletingItem) return;
+    try {
+      await apiService.deleteInventoryItem(deletingItem.id);
+      setShowDeleteModal(false);
+      setDeletingItem(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRenameCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryToEdit || !newCategoryName.trim()) return;
+    try {
+      await apiService.renameCategory(categoryToEdit, newCategoryName.trim());
+      setShowCategoryModal(false);
+      setCategoryToEdit('');
+      setNewCategoryName('');
       fetchData();
     } catch (err) {
       console.error(err);
@@ -202,13 +238,64 @@ export default function Pharmacy() {
       )}
 
       {activeView === 'inventory' && (
-        <div className="flex justify-end">
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="px-6 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"
-          >
-            <PackageCheck size={18} /> Add New Item
-          </button>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0 flex items-center gap-1 mr-1">
+                <Tag size={12} /> Category:
+              </span>
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={cn(
+                  "px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap border",
+                  selectedCategory === 'all'
+                    ? "bg-purple-600 text-white border-purple-600 shadow-md"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-purple-300"
+                )}
+              >
+                All Categories
+              </button>
+              {Array.from(new Set(inventory.map(item => item.category).filter(Boolean))).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap border",
+                    selectedCategory === cat
+                      ? "bg-purple-600 text-white border-purple-600 shadow-md"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-purple-300"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              {isPharmacyAdmin && (
+                <button
+                  onClick={() => {
+                    const availableCategories = Array.from(new Set(inventory.map(item => item.category).filter(Boolean)));
+                    setCategoryToEdit(selectedCategory !== 'all' ? selectedCategory : (availableCategories[0] || ''));
+                    setNewCategoryName(selectedCategory !== 'all' ? selectedCategory : (availableCategories[0] || ''));
+                    setShowCategoryModal(true);
+                  }}
+                  className="px-5 py-3 bg-purple-50 text-purple-700 border border-purple-200 rounded-2xl text-xs font-black uppercase tracking-widest shadow-sm hover:bg-purple-100 transition-all flex items-center gap-2"
+                  title="Rename or Edit Category"
+                >
+                  <FolderEdit size={16} /> Edit Category
+                </button>
+              )}
+
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-6 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2"
+              >
+                <PackageCheck size={18} /> Add New Item
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -385,7 +472,14 @@ export default function Pharmacy() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {inventory.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase())).map((item) => {
+                {inventory
+                  .filter(item => {
+                    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (item.category && item.category.toLowerCase().includes(searchQuery.toLowerCase()));
+                    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+                    return matchesSearch && matchesCategory;
+                  })
+                  .map((item) => {
                   const isLowStock = item.stockLevel <= 10 && item.stockLevel > 0;
                   const isOutOfStock = item.stockLevel === 0;
                   const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
@@ -464,18 +558,32 @@ export default function Pharmacy() {
                       </td>
                       <td className="px-6 py-4 text-right">
                          {isPharmacyAdmin && (
-                           <button
-                             onClick={() => {
-                               setEditingItem({
-                                 ...item,
-                                 expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
-                               });
-                               setShowEditModal(true);
-                             }}
-                             className="text-[10px] font-black text-blue-600 uppercase hover:underline"
-                           >
-                             Edit Stock
-                           </button>
+                           <div className="flex items-center justify-end gap-2">
+                             <button
+                               onClick={() => {
+                                 setEditingItem({
+                                   ...item,
+                                   expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
+                                 });
+                                 setShowEditModal(true);
+                               }}
+                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all border border-transparent hover:border-blue-100 flex items-center gap-1 text-xs font-bold"
+                               title="Edit Drug Details"
+                             >
+                               <Edit3 size={15} /> Edit
+                             </button>
+
+                             <button
+                               onClick={() => {
+                                 setDeletingItem(item);
+                                 setShowDeleteModal(true);
+                               }}
+                               className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100 flex items-center gap-1 text-xs font-bold"
+                               title="Delete Inventory Item"
+                             >
+                               <Trash2 size={15} /> Delete
+                             </button>
+                           </div>
                          )}
                       </td>
                     </tr>
@@ -583,9 +691,113 @@ export default function Pharmacy() {
                    </div>
                    <div className="flex gap-4 pt-4">
                       <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-4 text-sm font-black text-gray-400">Cancel</button>
-                      <button type="submit" className="flex-1 py-4 bg-gray-900 text-white rounded-2xl text-sm font-black shadow-lg">Update Stock</button>
+                      <button type="submit" className="flex-1 py-4 bg-gray-900 text-white rounded-2xl text-sm font-black shadow-lg">Update Drug Details</button>
                    </div>
                 </form>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Category Modal */}
+      <AnimatePresence>
+        {showCategoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+             <motion.div
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setShowCategoryModal(false)}
+               className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+             />
+             <motion.div
+               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+               className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 overflow-hidden"
+             >
+                <div className="flex items-center gap-5 mb-8">
+                   <div className="p-4 bg-purple-50 text-purple-600 rounded-3xl">
+                      <FolderEdit size={32} />
+                   </div>
+                   <div>
+                     <h3 className="text-xl font-black text-gray-900">Edit Pharmacy Category</h3>
+                     <p className="text-xs font-bold text-gray-400">Rename category across all associated medications</p>
+                   </div>
+                </div>
+
+                <form onSubmit={handleRenameCategory} className="space-y-6">
+                   <div className="space-y-2">
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select Existing Category</label>
+                       <select
+                         required
+                         className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold text-sm text-gray-900"
+                         value={categoryToEdit}
+                         onChange={(e) => {
+                           setCategoryToEdit(e.target.value);
+                           setNewCategoryName(e.target.value);
+                         }}
+                       >
+                         {Array.from(new Set(inventory.map(item => item.category).filter(Boolean))).map((cat) => (
+                           <option key={cat} value={cat}>{cat}</option>
+                         ))}
+                       </select>
+                   </div>
+
+                   <div className="space-y-2">
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">New Category Name</label>
+                       <input
+                         required
+                         className="w-full p-4 bg-gray-50 rounded-2xl border-none font-bold"
+                         placeholder="e.g. Analgesics & Antipyretics"
+                         value={newCategoryName}
+                         onChange={(e) => setNewCategoryName(e.target.value)}
+                       />
+                   </div>
+
+                   <div className="flex gap-4 pt-4">
+                      <button type="button" onClick={() => setShowCategoryModal(false)} className="flex-1 py-4 text-sm font-black text-gray-400">Cancel</button>
+                      <button type="submit" className="flex-1 py-4 bg-purple-600 text-white rounded-2xl text-sm font-black shadow-lg hover:bg-purple-700">Save Category</button>
+                   </div>
+                </form>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && deletingItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+             <motion.div
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setShowDeleteModal(false)}
+               className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+             />
+             <motion.div
+               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+               className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 overflow-hidden text-center"
+             >
+                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                   <Trash2 size={32} />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-2">Delete Inventory Item</h3>
+                <p className="text-sm font-medium text-gray-500 mb-6">
+                  Are you sure you want to delete <strong className="text-gray-900 uppercase font-black">{deletingItem.name}</strong> from pharmacy inventory? This action cannot be undone.
+                </p>
+
+                <div className="flex gap-4">
+                   <button
+                     type="button"
+                     onClick={() => setShowDeleteModal(false)}
+                     className="flex-1 py-3 text-xs font-black text-gray-500 uppercase tracking-widest bg-gray-100 hover:bg-gray-200 rounded-2xl transition-all"
+                   >
+                     Cancel
+                   </button>
+                   <button
+                     type="button"
+                     onClick={handleDeleteItem}
+                     className="flex-1 py-3 bg-red-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg hover:bg-red-700 transition-all"
+                   >
+                     Delete Item
+                   </button>
+                </div>
              </motion.div>
           </div>
         )}
