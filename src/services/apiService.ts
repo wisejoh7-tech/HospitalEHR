@@ -213,6 +213,16 @@ export const apiService = {
     return handleResponse<any[]>(res, 'Failed to fetch logs');
   },
 
+  async clearLogs(adminRole?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (adminRole) headers['x-user-role'] = adminRole;
+    const res = await fetch(`${API_BASE}/logs`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<any>(res, 'Failed to clear logs');
+  },
+
   async updateUserRole(id: string, role: string, adminRole?: string): Promise<any> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (adminRole) headers['x-user-role'] = adminRole;

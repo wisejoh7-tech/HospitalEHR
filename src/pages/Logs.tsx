@@ -24,6 +24,7 @@ export default function Logs() {
   const [filter, setFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'logs' | 'users'>('logs');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearingLogs, setClearingLogs] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -46,6 +47,32 @@ export default function Logs() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleClearLogs = async () => {
+    if (!profile || profile.role !== 'admin') {
+      alert('Only administrators can clear activity logs.');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to clear all activity logs? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setClearingLogs(true);
+      setErrorMsg(null);
+      await apiService.clearLogs(profile.role);
+      setLogs([]);
+      setSuccessMsg('Successfully cleared all activity logs.');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to clear activity logs.');
+      setTimeout(() => setErrorMsg(null), 5000);
+    } finally {
+      setClearingLogs(false);
+    }
+  };
 
   const handleDeleteUser = async (userToDelete: { id: string; name: string; role?: string }) => {
     if (!profile || profile.role !== 'admin') {
@@ -181,8 +208,20 @@ export default function Logs() {
             className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl font-bold focus:ring-4 focus:ring-blue-50 outline-none transition-all shadow-sm"
           />
         </div>
-        <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-          {activeTab === 'logs' ? `Total Activity Logs: ${filteredLogs.length}` : `Total Registered Users: ${filteredUsers.length}`}
+        <div className="flex items-center gap-3">
+          {activeTab === 'logs' && isAdmin && (
+            <button
+              onClick={handleClearLogs}
+              disabled={clearingLogs || logs.length === 0}
+              className="flex items-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-600 hover:text-white text-red-600 rounded-2xl text-xs font-black border border-red-200 hover:border-red-600 transition-all active:scale-95 disabled:opacity-50 disabled:hover:bg-red-50 disabled:hover:text-red-600 border-dashed cursor-pointer"
+            >
+              <Trash2 size={15} />
+              {clearingLogs ? 'Clearing Logs...' : 'Clear Activity Logs'}
+            </button>
+          )}
+          <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-white px-4 py-3 rounded-2xl border border-gray-100 shadow-sm">
+            {activeTab === 'logs' ? `Total Activity Logs: ${filteredLogs.length}` : `Total Registered Users: ${filteredUsers.length}`}
+          </div>
         </div>
       </div>
 
