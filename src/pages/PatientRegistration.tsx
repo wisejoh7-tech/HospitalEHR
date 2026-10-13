@@ -203,20 +203,31 @@ export default function PatientRegistration() {
   const prevStep = () => setStep(prev => prev - 1);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b pb-6">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Patient Enrollment</h1>
-          <p className="text-gray-500 font-medium italic">VIVO Medical Center - Digital Admissions v3.0</p>
-        </div>
-        <div className="flex items-center gap-2">
-           {[1, 2, 3].map(i => (
-             <div key={i} className={cn(
-               "w-8 h-2 rounded-full transition-all duration-300",
-               step >= i ? "bg-blue-600" : "bg-gray-200"
-             )} />
-           ))}
+    <div className="max-w-4xl mx-auto space-y-8 animate-in px-2 sm:px-4 py-4 sm:py-8">
+      {/* Background Hero Header */}
+      <div
+        className="relative rounded-3xl overflow-hidden p-6 sm:p-8 bg-cover bg-center text-white shadow-xl"
+        style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1600')` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/80 to-blue-950/70 backdrop-blur-xs"></div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold uppercase tracking-wider mb-2">
+              <User size={14} /> Registration & Record Desk
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Patient Registration</h1>
+            <p className="text-blue-100/80 font-medium text-xs sm:text-sm mt-1">
+              VIVO Medical Center • Digital Admissions & Patient Folder Creation
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 self-start md:self-auto">
+             {[1, 2, 3].map(i => (
+               <div key={i} className={cn(
+                 "w-8 sm:w-10 h-2.5 rounded-full transition-all duration-300",
+                 step >= i ? "bg-blue-400 shadow-sm" : "bg-white/20"
+               )} />
+             ))}
+          </div>
         </div>
       </div>
 
@@ -412,16 +423,6 @@ export default function PatientRegistration() {
                          className="text-sm font-black text-blue-600 hover:underline"
                        >
                          Launch Camera
-                       </button>
-                       <button 
-                         type="button"
-                         onClick={() => {
-                           setCapturedPhoto("https://api.dicebear.com/7.x/avataaars/svg?seed=" + Math.random());
-                           setQualityError(null);
-                         }}
-                         className="text-[10px] font-bold text-gray-400 hover:text-blue-600 transition-colors"
-                       >
-                         (Simulate Photo)
                        </button>
                     </div>
                   )}

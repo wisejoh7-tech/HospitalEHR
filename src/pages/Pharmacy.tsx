@@ -119,11 +119,46 @@ export default function Pharmacy() {
   };
 
   return (
-    <div className="space-y-8 animate-in mt-20">
+    <div className="space-y-8 animate-in mt-6">
+      {/* Pharmacist Department Banner */}
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-purple-100 bg-white">
+        <div className="flex flex-col md:flex-row">
+          <div className="md:w-1/3 h-48 md:h-auto relative overflow-hidden shrink-0">
+            <img
+              src="https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fit=crop&q=80&w=800"
+              alt="Clinical Pharmacist"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent md:hidden"></div>
+            <div className="absolute bottom-3 left-3 md:hidden">
+              <span className="px-2.5 py-1 bg-purple-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                Pharmacy Unit
+              </span>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black uppercase tracking-widest mb-2">
+                <Pill size={12} /> Pharmacist Desk & Pharmaceutical Services
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Pharmacy Control Center</h1>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                Managed by Chief Pharmacist • Prescription Dispensing, Drug Interaction Verification & Inventory Management
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-purple-500 animate-ping"></span>
+                <span>Active Prescriptions: <strong className="text-purple-700 font-black">{stats.active} Orders</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pharmacy Control Center</h1>
-          <p className="text-gray-500 font-medium">{isPharmacyAdmin ? 'Medication Inventory & Safety Controls' : 'Active Clinical Prescriptions'}</p>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight">{isPharmacyAdmin ? 'Medication Inventory & Safety Controls' : 'Active Clinical Prescriptions'}</h2>
         </div>
         
         <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">

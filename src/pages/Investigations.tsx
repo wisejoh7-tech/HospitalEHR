@@ -86,11 +86,52 @@ export default function Investigations() {
   };
 
   return (
-    <div className="space-y-8 animate-in mt-20">
+    <div className="space-y-8 animate-in mt-6">
+      {/* Diagnostic Services Banner (Lab Scientist & Radiologist Pictures) */}
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-indigo-100 bg-white">
+        <div className="flex flex-col md:flex-row">
+          <div className="md:w-1/3 h-48 md:h-auto relative overflow-hidden shrink-0">
+            <img
+              src={
+                filterType === 'radiology'
+                  ? "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=800"
+                  : "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=80&w=800"
+              }
+              alt={filterType === 'radiology' ? "Radiologist Reading Scans" : "Laboratory Scientist"}
+              className="w-full h-full object-cover transition-all duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent md:hidden"></div>
+            <div className="absolute bottom-3 left-3 md:hidden">
+              <span className="px-2.5 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                {filterType === 'radiology' ? 'Radiology Unit' : 'Laboratory Unit'}
+              </span>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black uppercase tracking-widest mb-2">
+                <Activity size={12} /> {filterType === 'radiology' ? 'Radiology Specialist Desk' : 'Laboratory Scientist Desk'}
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Diagnostic Services Terminal</h1>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                {filterType === 'radiology'
+                  ? 'Managed by Consultant Radiologist • X-Ray, CT Scan, Ultrasound & MRI Diagnostic Imaging'
+                  : 'Managed by Medical Laboratory Scientist • Clinical Pathology, Hematology, Microbiology & Chemistry Diagnostics'}
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                <span>Active Investigations: <strong className="text-indigo-700 font-black">{investigations.length} Requests</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Diagnostic Services Terminal</h1>
-          <p className="text-gray-500 font-medium tracking-tight">Managing laboratory tests and radiology requests unit-wide.</p>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight">Investigation Worklist</h2>
         </div>
         
         <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl w-fit">

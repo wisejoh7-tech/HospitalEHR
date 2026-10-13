@@ -44,27 +44,27 @@ export default function Billing() {
   );
 
   return (
-    <div className="space-y-8 h-full flex flex-col">
-      <header className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+    <div className="space-y-6 sm:space-y-8 h-full flex flex-col">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 sm:p-8 rounded-3xl border border-gray-100 shadow-xs">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Revenue Management</h1>
-          <p className="text-gray-400 font-bold text-sm tracking-tight">Track billing, invoices and payments</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Revenue Management</h1>
+          <p className="text-gray-400 font-bold text-xs sm:text-sm tracking-tight">Track billing, invoices and payments</p>
         </div>
-        <div className="flex gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
               type="text" 
               placeholder="Search patient or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl w-80 font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl font-bold text-xs focus:ring-2 focus:ring-blue-100 outline-none transition-all"
             />
           </div>
           <select 
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
-            className="px-6 py-4 bg-gray-50 border-none rounded-2xl font-black text-xs uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-100"
+            className="px-4 py-3 bg-gray-50 border-none rounded-2xl font-black text-xs uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-100"
           >
             <option value="all">All Invoices</option>
             <option value="pending">Pending</option>
@@ -73,8 +73,8 @@ export default function Billing() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-auto bg-white rounded-[2.5rem] border border-gray-100 shadow-sm">
-        <table className="w-full text-left border-collapse">
+      <div className="flex-1 overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-xs">
+        <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
             <tr className="border-b border-gray-50">
               <th className="p-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Patient</th>
@@ -112,7 +112,7 @@ export default function Billing() {
                 <td className="p-6 text-right">
                   <button 
                     onClick={() => navigate(`/patients/${p.id}?tab=billing`)}
-                    className="p-3 bg-gray-900 text-white rounded-xl shadow-lg shadow-gray-200 opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                    className="p-3 bg-gray-900 text-white rounded-xl shadow-md shadow-gray-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:scale-105"
                   >
                     <ArrowRight size={18} />
                   </button>

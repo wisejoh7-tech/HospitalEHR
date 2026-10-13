@@ -49,7 +49,17 @@ export default function PatientDetails() {
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [activeTab, setActiveTab] = useState<'notes' | 'prescriptions' | 'labs' | 'radiology' | 'vitals' | 'treatment' | 'billing' | 'appointments'>('notes');
+  const [physiotherapyReferrals, setPhysiotherapyReferrals] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'notes' | 'prescriptions' | 'labs' | 'radiology' | 'vitals' | 'treatment' | 'physiotherapy' | 'billing' | 'appointments'>('notes');
+  const [showPhysioModal, setShowPhysioModal] = useState(false);
+  const [physioForm, setPhysioForm] = useState({
+    bodyRegion: 'Lower Back',
+    clinicalIndication: '',
+    treatmentType: 'Manual Therapy & Exercise',
+    sessionsRequested: '5',
+    priority: 'routine' as 'routine' | 'urgent' | 'emergency',
+    notes: ''
+  });
   const [noteContent, setNoteContent] = useState('');
   const [noteType, setNoteType] = useState<NoteType>('physician');
   const [loading, setLoading] = useState(true);
@@ -171,6 +181,7 @@ export default function PatientDetails() {
         setBills(data.bills || []);
         setTreatmentPlans(data.treatmentPlans || []);
         setReviews(data.reviews || []);
+        setPhysiotherapyReferrals(data.physiotherapyReferrals || []);
 
         const [wardsList, invList, appsList] = await Promise.all([
           apiService.getWards(),
@@ -252,6 +263,30 @@ export default function PatientDetails() {
     try {
       const updated = await apiService.updateInvestigation(invId, { status, result });
       setInvestigations(prev => prev.map(i => i.id === invId ? updated : i));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddPhysiotherapyReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !profile) return;
+    try {
+      const referral = await apiService.createPhysiotherapyReferral(id, {
+        referredBy: `Dr. ${profile.name}`,
+        ...physioForm,
+        sessionsRequested: parseInt(physioForm.sessionsRequested) || 1
+      });
+      setPhysiotherapyReferrals(prev => [referral, ...prev]);
+      setShowPhysioModal(false);
+      setPhysioForm({
+        bodyRegion: 'Lower Back',
+        clinicalIndication: '',
+        treatmentType: 'Manual Therapy & Exercise',
+        sessionsRequested: '5',
+        priority: 'routine',
+        notes: ''
+      });
     } catch (err) {
       console.error(err);
     }
@@ -697,6 +732,7 @@ export default function PatientDetails() {
                 { id: 'notes', label: 'Timeline', icon: FileText },
                 { id: 'vitals', label: 'Vitals', icon: Activity },
                 { id: 'treatment', label: 'Plan & Review', icon: Stethoscope },
+                { id: 'physiotherapy', label: 'Physiotherapy', icon: Activity },
                 { id: 'prescriptions', label: 'Rx', icon: Pill },
                 { id: 'labs', label: 'Labs', icon: Activity },
                 { id: 'radiology', label: 'Radiology', icon: FileSearch },
@@ -932,6 +968,67 @@ export default function PatientDetails() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {activeTab === 'physiotherapy' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    <div className="flex items-center justify-between">
+                       <div>
+                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Physiotherapy Referrals</h3>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Physical Rehabilitation & Therapy Orders</p>
+                       </div>
+                       {isDoctor && (
+                         <button
+                           onClick={() => setShowPhysioModal(true)}
+                           className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
+                         >
+                           <PlusCircle size={14} /> Refer to Physiotherapist
+                         </button>
+                       )}
+                    </div>
+
+                    <div className="space-y-4">
+                       {physiotherapyReferrals.map(ref => (
+                         <div key={ref.id} className="p-5 border border-gray-100 bg-gray-50 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 w-full">
+                               <div className="p-3 bg-teal-100 text-teal-700 rounded-xl font-black">
+                                  <Activity size={24} />
+                               </div>
+                               <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                     <p className="font-black text-gray-900 text-base">{ref.treatmentType}</p>
+                                     <span className="text-[10px] font-black uppercase bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full">
+                                        Region: {ref.bodyRegion}
+                                     </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600 font-medium italic mt-0.5">"{ref.clinicalIndication}"</p>
+                                  <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
+                                     Referred by {ref.referredBy} • {formatDate(ref.createdAt)}
+                                  </p>
+                               </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                               <span className={cn(
+                                 "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                                 ref.status === 'completed' ? "bg-emerald-100 text-emerald-700" :
+                                 ref.status === 'in_progress' ? "bg-blue-100 text-blue-700" :
+                                 "bg-amber-100 text-amber-700"
+                               )}>
+                                 {ref.status.replace('_', ' ')}
+                               </span>
+                               <span className="text-[10px] font-bold text-gray-500">
+                                 Sessions: {ref.sessionsCompleted} / {ref.sessionsRequested}
+                               </span>
+                            </div>
+                         </div>
+                       ))}
+                       {physiotherapyReferrals.length === 0 && (
+                         <div className="p-12 text-center text-gray-300 font-bold uppercase tracking-widest text-xs">
+                            No physiotherapy referrals recorded.
+                         </div>
+                       )}
                     </div>
                   </motion.div>
                 )}
@@ -1230,6 +1327,96 @@ export default function PatientDetails() {
         interactionWarning={interactionWarning} setInteractionWarning={setInteractionWarning}
         handleRxFormChange={handleRxFormChange}
       />
+
+      {/* Physiotherapy Referral Modal */}
+      <AnimatePresence>
+        {showPhysioModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowPhysioModal(false)}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 sm:p-10 overflow-hidden"
+            >
+               <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-6">
+                  <Activity size={32} />
+               </div>
+               <h3 className="text-xl font-black text-gray-900 mb-1">Physiotherapy Referral</h3>
+               <p className="text-xs font-medium text-gray-500 mb-6">Refer patient {patient.name} to the Physiotherapy department.</p>
+
+               <form onSubmit={handleAddPhysiotherapyReferral} className="space-y-4 text-left">
+                 <div>
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Affected Body Region</label>
+                   <select
+                     value={physioForm.bodyRegion}
+                     onChange={(e) => setPhysioForm({...physioForm, bodyRegion: e.target.value})}
+                     className="w-full p-3.5 bg-gray-50 rounded-2xl border-none font-bold text-xs outline-none focus:ring-2 focus:ring-teal-100"
+                   >
+                     <option value="Lower Back">Lower Back / Lumbar Spine</option>
+                     <option value="Cervical Spine">Cervical Spine / Neck</option>
+                     <option value="Knee Joint">Knee Joint / ACL</option>
+                     <option value="Shoulder">Shoulder / Rotator Cuff</option>
+                     <option value="Hip Joint">Hip Joint / Pelvis</option>
+                     <option value="Ankle & Foot">Ankle & Foot</option>
+                     <option value="Post-Stroke Rehab">Post-Stroke Hemiplegia Rehab</option>
+                     <option value="General Rehabilitation">General Physical Rehabilitation</option>
+                   </select>
+                 </div>
+
+                 <div>
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Clinical Indication / Diagnosis</label>
+                   <input
+                     type="text"
+                     required
+                     placeholder="e.g. Lumbar radiculopathy, Gait impairment, Osteoarthritis"
+                     value={physioForm.clinicalIndication}
+                     onChange={(e) => setPhysioForm({...physioForm, clinicalIndication: e.target.value})}
+                     className="w-full p-3.5 bg-gray-50 rounded-2xl border-none font-bold text-xs outline-none focus:ring-2 focus:ring-teal-100"
+                   />
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-3">
+                   <div>
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Recommended Sessions</label>
+                     <input
+                       type="number"
+                       min="1"
+                       max="30"
+                       required
+                       value={physioForm.sessionsRequested}
+                       onChange={(e) => setPhysioForm({...physioForm, sessionsRequested: e.target.value})}
+                       className="w-full p-3.5 bg-gray-50 rounded-2xl border-none font-bold text-xs outline-none focus:ring-2 focus:ring-teal-100"
+                     />
+                   </div>
+
+                   <div>
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Priority</label>
+                     <select
+                       value={physioForm.priority}
+                       onChange={(e) => setPhysioForm({...physioForm, priority: e.target.value as any})}
+                       className="w-full p-3.5 bg-gray-50 rounded-2xl border-none font-bold text-xs outline-none focus:ring-2 focus:ring-teal-100"
+                     >
+                       <option value="routine">Routine</option>
+                       <option value="urgent">Urgent</option>
+                       <option value="emergency">Emergency</option>
+                     </select>
+                   </div>
+                 </div>
+
+                 <div className="flex gap-3 pt-4">
+                   <button type="button" onClick={() => setShowPhysioModal(false)} className="flex-1 py-3 text-xs font-black text-gray-400 uppercase">Cancel</button>
+                   <button type="submit" className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-teal-100">
+                     Create Referral
+                   </button>
+                 </div>
+               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Appointment Modal */}
       <AnimatePresence>

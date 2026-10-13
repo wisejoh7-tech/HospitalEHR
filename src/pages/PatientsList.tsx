@@ -187,14 +187,9 @@ export default function PatientsList() {
     
     setTimeout(async () => {
       try {
-        // If input is provided, search by it. Otherwise, for demo purposes, find any active patient.
-        let patient;
-        if (fingerprintInput) {
-          patient = await apiService.findPatientByFingerprint(fingerprintInput);
-        } else {
-          // Demo logic: Find the most recent registered patient if no specific ID entered
-          const list = await apiService.getPatients();
-          patient = list.length > 0 ? list[0] : null;
+        let patient = null;
+        if (fingerprintInput.trim()) {
+          patient = await apiService.findPatientByFingerprint(fingerprintInput.trim());
         }
 
         if (patient) {
@@ -203,7 +198,7 @@ export default function PatientsList() {
             navigate(`/patients/${patient.id}`);
           }, 1500);
         } else {
-          setScanResult("Biometric pattern not recognized. Ensure patient is registered.");
+          setScanResult("Biometric pattern not recognized. Please enter a valid registered Biometric ID.");
         }
       } catch (err: any) {
         setScanResult(err.message || "Identification failed.");
@@ -239,16 +234,55 @@ export default function PatientsList() {
 
   return (
     <div className="space-y-6">
+      {/* Department Banner with Doctor & Medical Record Officer Photos */}
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-blue-100 bg-white">
+        <div className="flex flex-col md:flex-row">
+          <div className="md:w-1/3 h-48 md:h-auto relative overflow-hidden shrink-0">
+            <img
+              src={
+                profile?.role === 'record'
+                  ? "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800"
+                  : "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800"
+              }
+              alt={profile?.role === 'record' ? "Medical Records Officer" : "Consultant Physician"}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent md:hidden"></div>
+            <div className="absolute bottom-3 left-3 md:hidden">
+              <span className="px-2.5 py-1 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                {profile?.role === 'record' ? 'Records & Archive' : 'Clinical Desk'}
+              </span>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-black uppercase tracking-widest mb-2">
+                <Users size={12} /> {profile?.role === 'record' ? 'Health Records Management Station' : 'Clinical Doctors & Reception Terminal'}
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                {isAdmin ? 'Clinical Department Console' : profile?.role === 'record' ? 'Health Records & Folder Management' : 'Patients Directory'}
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                {profile?.role === 'record'
+                  ? 'Managed by Health Records Officer • Patient Registration, Biometric Search & Folder Archiving'
+                  : 'Managed by Consultant Doctors & Record Officers • Live Patient Tracking & Departmental Workflow'}
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+                <span>Active Directory: <strong className="text-blue-700 font-black">{patients.length} Registered Patients</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 mb-1">
-            {isAdmin ? 'Clinical Department Console' : 'Patients'}
-          </h1>
-          <p className="text-gray-500 font-medium text-sm">
-            {isAdmin ? 'Manage the movement of patients through clinical departments.' : 'View patient information and medical records.'}
-          </p>
+          <h2 className="text-lg font-black text-gray-900 mb-0.5">Patient Management Queue</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {(profile?.role === 'admin' || profile?.role === 'doctor' || profile?.role === 'nurse') && (
             <button 
               onClick={() => navigate('/admission')}
@@ -274,15 +308,6 @@ export default function PatientsList() {
           >
             <Fingerprint size={16} /> Biometric ID
           </button>
-          {isAdmin && (
-            <button
-              onClick={seedPatient}
-              className="p-2.5 bg-white border border-gray-100 rounded-xl text-indigo-600 hover:text-indigo-800 shadow-sm"
-              title="Seed Sample Patient"
-            >
-              <Database size={16} />
-            </button>
-          )}
         </div>
       </header>
 
