@@ -10,6 +10,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Hospital Management System',
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
