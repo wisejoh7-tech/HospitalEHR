@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import SyncManager from './SyncManager';
 
 export default function Layout() {
   const { profile, logout } = useAuth();
@@ -165,6 +166,7 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <SyncManager />
             <button className="p-1.5 text-gray-600 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 bg-white rounded-md relative">
               <Bell size={16} />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>

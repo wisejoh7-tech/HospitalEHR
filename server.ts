@@ -330,6 +330,513 @@ async function startServer() {
     }
   }
 
+  // Database & Sync Engine
+  const isSQLiteDatabase = (): boolean => {
+    const url = (process.env.DATABASE_URL || '').toLowerCase();
+    return url.startsWith('file:') || url.startsWith('sqlite:');
+  };
+
+  async function upsertImportData(data: any) {
+    let count = 0;
+    if (!data) return count;
+
+    if (Array.isArray(data.users)) {
+      for (const u of data.users) {
+        if (!u.id) continue;
+        await prisma.user.upsert({
+          where: { id: u.id },
+          update: {
+            name: u.name,
+            email: u.email ?? null,
+            phone: u.phone ?? null,
+            password: u.password ?? null,
+            role: u.role,
+            uid: u.uid ?? null
+          },
+          create: {
+            id: u.id,
+            name: u.name,
+            email: u.email ?? null,
+            phone: u.phone ?? null,
+            password: u.password ?? null,
+            role: u.role,
+            uid: u.uid ?? null,
+            createdAt: u.createdAt ? new Date(u.createdAt) : undefined
+          }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.pricing)) {
+      for (const p of data.pricing) {
+        if (!p.id || !p.name) continue;
+        await prisma.servicePricing.upsert({
+          where: { name: p.name },
+          update: { category: p.category, price: parseFloat(p.price) || 0 },
+          create: { id: p.id, name: p.name, category: p.category, price: parseFloat(p.price) || 0 }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.inventory)) {
+      for (const i of data.inventory) {
+        if (!i.id || !i.name) continue;
+        await prisma.inventory.upsert({
+          where: { name: i.name },
+          update: {
+            category: i.category ?? null,
+            description: i.description ?? null,
+            stockLevel: parseInt(i.stockLevel) || 0,
+            price: parseFloat(i.price) || 0,
+            unit: i.unit || 'pcs',
+            expiryDate: i.expiryDate ? new Date(i.expiryDate) : null
+          },
+          create: {
+            id: i.id,
+            name: i.name,
+            category: i.category ?? null,
+            description: i.description ?? null,
+            stockLevel: parseInt(i.stockLevel) || 0,
+            price: parseFloat(i.price) || 0,
+            unit: i.unit || 'pcs',
+            expiryDate: i.expiryDate ? new Date(i.expiryDate) : null
+          }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.wards)) {
+      for (const w of data.wards) {
+        if (!w.id) continue;
+        await prisma.ward.upsert({
+          where: { id: w.id },
+          update: { name: w.name, type: w.type || 'General', capacity: parseInt(w.capacity) || 20 },
+          create: { id: w.id, name: w.name, type: w.type || 'General', capacity: parseInt(w.capacity) || 20 }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.patients)) {
+      for (const p of data.patients) {
+        if (!p.id) continue;
+        await prisma.patient.upsert({
+          where: { id: p.id },
+          update: {
+            name: p.name,
+            gender: p.gender,
+            dob: new Date(p.dob),
+            age: p.age ? parseInt(p.age) : null,
+            bloodGroup: p.bloodGroup ?? null,
+            address: p.address ?? null,
+            nextOfKinName: p.nextOfKinName ?? null,
+            nextOfKinPhone: p.nextOfKinPhone ?? null,
+            nextOfKinRelationship: p.nextOfKinRelationship ?? null,
+            photoUrl: p.photoUrl ?? null,
+            fingerprint: p.fingerprint ?? null,
+            nextVisit: p.nextVisit ? new Date(p.nextVisit) : null,
+            allergies: p.allergies ?? null,
+            status: p.status || 'outpatient',
+            workflowStatus: p.workflowStatus || 'registered',
+            dischargeReason: p.dischargeReason ?? null,
+            diagnosis: p.diagnosis ?? null
+          },
+          create: {
+            id: p.id,
+            name: p.name,
+            gender: p.gender,
+            dob: new Date(p.dob),
+            age: p.age ? parseInt(p.age) : null,
+            bloodGroup: p.bloodGroup ?? null,
+            address: p.address ?? null,
+            nextOfKinName: p.nextOfKinName ?? null,
+            nextOfKinPhone: p.nextOfKinPhone ?? null,
+            nextOfKinRelationship: p.nextOfKinRelationship ?? null,
+            photoUrl: p.photoUrl ?? null,
+            fingerprint: p.fingerprint ?? null,
+            nextVisit: p.nextVisit ? new Date(p.nextVisit) : null,
+            allergies: p.allergies ?? null,
+            admissionDate: p.admissionDate ? new Date(p.admissionDate) : new Date(),
+            status: p.status || 'outpatient',
+            workflowStatus: p.workflowStatus || 'registered',
+            dischargeReason: p.dischargeReason ?? null,
+            diagnosis: p.diagnosis ?? null
+          }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.beds)) {
+      for (const b of data.beds) {
+        if (!b.id) continue;
+        await prisma.bed.upsert({
+          where: { id: b.id },
+          update: { status: b.status, wardId: b.wardId, patientId: b.patientId ?? null },
+          create: { id: b.id, status: b.status, wardId: b.wardId, patientId: b.patientId ?? null }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.appointments)) {
+      for (const a of data.appointments) {
+        if (!a.id) continue;
+        await prisma.appointment.upsert({
+          where: { id: a.id },
+          update: {
+            patientId: a.patientId,
+            doctorId: a.doctorId ?? null,
+            doctorName: a.doctorName ?? null,
+            dateTime: new Date(a.dateTime),
+            reason: a.reason,
+            status: a.status,
+            type: a.type
+          },
+          create: {
+            id: a.id,
+            patientId: a.patientId,
+            doctorId: a.doctorId ?? null,
+            doctorName: a.doctorName ?? null,
+            dateTime: new Date(a.dateTime),
+            reason: a.reason,
+            status: a.status,
+            type: a.type
+          }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.bills)) {
+      for (const b of data.bills) {
+        if (!b.id) continue;
+        await prisma.bill.upsert({
+          where: { id: b.id },
+          update: { patientId: b.patientId, totalAmount: parseFloat(b.totalAmount) || 0, status: b.status },
+          create: { id: b.id, patientId: b.patientId, totalAmount: parseFloat(b.totalAmount) || 0, status: b.status, createdAt: b.createdAt ? new Date(b.createdAt) : undefined }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.billItems)) {
+      for (const bi of data.billItems) {
+        if (!bi.id) continue;
+        await prisma.billItem.upsert({
+          where: { id: bi.id },
+          update: { billId: bi.billId, description: bi.description, amount: parseFloat(bi.amount) || 0, type: bi.type },
+          create: { id: bi.id, billId: bi.billId, description: bi.description, amount: parseFloat(bi.amount) || 0, type: bi.type, createdAt: bi.createdAt ? new Date(bi.createdAt) : undefined }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.prescriptions)) {
+      for (const rx of data.prescriptions) {
+        if (!rx.id) continue;
+        await prisma.prescription.upsert({
+          where: { id: rx.id },
+          update: {
+            patientId: rx.patientId,
+            authorId: rx.authorId,
+            authorName: rx.authorName || 'Unknown',
+            medication: rx.medication,
+            dosage: rx.dosage,
+            frequency: rx.frequency,
+            duration: rx.duration,
+            status: rx.status
+          },
+          create: {
+            id: rx.id,
+            patientId: rx.patientId,
+            authorId: rx.authorId,
+            authorName: rx.authorName || 'Unknown',
+            medication: rx.medication,
+            dosage: rx.dosage,
+            frequency: rx.frequency,
+            duration: rx.duration,
+            status: rx.status,
+            createdAt: rx.createdAt ? new Date(rx.createdAt) : undefined
+          }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.vitals)) {
+      for (const v of data.vitals) {
+        if (!v.id) continue;
+        await prisma.vitalSign.upsert({
+          where: { id: v.id },
+          update: { bp: v.bp, pulse: v.pulse, temp: v.temp, resp: v.resp, spo2: v.spo2, weight: v.weight, takenBy: v.takenBy },
+          create: { id: v.id, patientId: v.patientId, bp: v.bp, pulse: v.pulse, temp: v.temp, resp: v.resp, spo2: v.spo2, weight: v.weight, takenBy: v.takenBy, createdAt: v.createdAt ? new Date(v.createdAt) : undefined }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.investigations)) {
+      for (const inv of data.investigations) {
+        if (!inv.id) continue;
+        await prisma.investigation.upsert({
+          where: { id: inv.id },
+          update: { type: inv.type, category: inv.category, testName: inv.testName, status: inv.status, priority: inv.priority, requestedBy: inv.requestedBy, result: inv.result, fileUrl: inv.fileUrl },
+          create: { id: inv.id, patientId: inv.patientId, type: inv.type, category: inv.category, testName: inv.testName, status: inv.status, priority: inv.priority, requestedBy: inv.requestedBy, result: inv.result, fileUrl: inv.fileUrl, createdAt: inv.createdAt ? new Date(inv.createdAt) : undefined }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.notes)) {
+      for (const n of data.notes) {
+        if (!n.id) continue;
+        await prisma.clinicalNote.upsert({
+          where: { id: n.id },
+          update: { content: n.content, type: n.type, authorId: n.authorId, authorName: n.authorName },
+          create: { id: n.id, patientId: n.patientId, content: n.content, type: n.type, authorId: n.authorId, authorName: n.authorName, createdAt: n.createdAt ? new Date(n.createdAt) : undefined }
+        });
+        count++;
+      }
+    }
+
+    if (Array.isArray(data.physiotherapyReferrals)) {
+      for (const pt of data.physiotherapyReferrals) {
+        if (!pt.id) continue;
+        await prisma.physiotherapyReferral.upsert({
+          where: { id: pt.id },
+          update: { referredBy: pt.referredBy, clinicalIndication: pt.clinicalIndication, bodyRegion: pt.bodyRegion, treatmentType: pt.treatmentType, sessionsRequested: pt.sessionsRequested, sessionsCompleted: pt.sessionsCompleted, priority: pt.priority, status: pt.status, notes: pt.notes },
+          create: { id: pt.id, patientId: pt.patientId, referredBy: pt.referredBy, clinicalIndication: pt.clinicalIndication, bodyRegion: pt.bodyRegion, treatmentType: pt.treatmentType, sessionsRequested: pt.sessionsRequested, sessionsCompleted: pt.sessionsCompleted, priority: pt.priority, status: pt.status, notes: pt.notes, createdAt: pt.createdAt ? new Date(pt.createdAt) : undefined }
+        });
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  app.get('/api/db/info', async (req, res) => {
+    try {
+      const isSqlite = isSQLiteDatabase();
+      const [users, patients, inventory, bills, prescriptions, appointments] = await Promise.all([
+        prisma.user.count(),
+        prisma.patient.count(),
+        prisma.inventory.count(),
+        prisma.bill.count(),
+        prisma.prescription.count(),
+        prisma.appointment.count()
+      ]);
+      res.json({
+        provider: isSqlite ? 'sqlite' : 'postgresql',
+        databaseUrl: isSqlite ? 'Local SQLite Database' : 'Render PostgreSQL Database',
+        counts: { users, patients, inventory, bills, prescriptions, appointments },
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch database info' });
+    }
+  });
+
+  app.get('/api/sync/status', async (req, res) => {
+    try {
+      const isSqlite = isSQLiteDatabase();
+      const userCount = await prisma.user.count();
+      const patientCount = await prisma.patient.count();
+      const inventoryCount = await prisma.inventory.count();
+
+      res.json({
+        provider: isSqlite ? 'sqlite' : 'postgresql',
+        status: 'online',
+        recordCounts: { users: userCount, patients: patientCount, inventory: inventoryCount },
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to fetch sync status' });
+    }
+  });
+
+  app.get('/api/sync/export', async (req, res) => {
+    try {
+      const [
+        users,
+        wards,
+        beds,
+        patients,
+        physiotherapyReferrals,
+        appointments,
+        bills,
+        billItems,
+        treatmentPlans,
+        reviews,
+        vitals,
+        investigations,
+        notes,
+        prescriptions,
+        inventory,
+        pricing,
+        logs
+      ] = await Promise.all([
+        prisma.user.findMany(),
+        prisma.ward.findMany(),
+        prisma.bed.findMany(),
+        prisma.patient.findMany(),
+        prisma.physiotherapyReferral.findMany(),
+        prisma.appointment.findMany(),
+        prisma.bill.findMany(),
+        prisma.billItem.findMany(),
+        prisma.treatmentPlan.findMany(),
+        prisma.review.findMany(),
+        prisma.vitalSign.findMany(),
+        prisma.investigation.findMany(),
+        prisma.clinicalNote.findMany(),
+        prisma.prescription.findMany(),
+        prisma.inventory.findMany(),
+        prisma.servicePricing.findMany(),
+        prisma.auditLog.findMany({ take: 200, orderBy: { timestamp: 'desc' } })
+      ]);
+
+      res.json({
+        exportedAt: new Date().toISOString(),
+        provider: isSQLiteDatabase() ? 'sqlite' : 'postgresql',
+        data: {
+          users,
+          wards,
+          beds,
+          patients,
+          physiotherapyReferrals,
+          appointments,
+          bills,
+          billItems,
+          treatmentPlans,
+          reviews,
+          vitals,
+          investigations,
+          notes,
+          prescriptions,
+          inventory,
+          pricing,
+          logs
+        }
+      });
+    } catch (err: any) {
+      console.error('Export error:', err);
+      res.status(500).json({ error: 'Failed to export database snapshot' });
+    }
+  });
+
+  app.post('/api/sync/import', async (req, res) => {
+    try {
+      const { data } = req.body;
+      if (!data) {
+        return res.status(400).json({ error: 'Missing sync data payload' });
+      }
+
+      const importedCount = await upsertImportData(data);
+      res.json({
+        success: true,
+        importedRecords: importedCount,
+        provider: isSQLiteDatabase() ? 'sqlite' : 'postgresql',
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('Import error:', err);
+      res.status(500).json({ error: 'Sync import failed: ' + err.message });
+    }
+  });
+
+  app.post('/api/sync/sync-remote', async (req, res) => {
+    try {
+      const { remoteUrl } = req.body;
+      if (!remoteUrl) {
+        return res.status(400).json({ error: 'Remote URL is required for synchronization' });
+      }
+
+      const cleanRemoteUrl = remoteUrl.replace(/\/+$/, '');
+      const exportEndpoint = `${cleanRemoteUrl.endsWith('/api') ? cleanRemoteUrl : cleanRemoteUrl + '/api'}/sync/export`;
+      const importEndpoint = `${cleanRemoteUrl.endsWith('/api') ? cleanRemoteUrl : cleanRemoteUrl + '/api'}/sync/import`;
+
+      // 1. Fetch remote dataset from Render PostgreSQL server
+      const remoteRes = await fetch(exportEndpoint);
+      if (!remoteRes.ok) {
+        throw new Error(`Failed to fetch data from remote Render host (${remoteRes.status} ${remoteRes.statusText})`);
+      }
+      const remoteSnapshot = await remoteRes.json();
+
+      let localImportedCount = 0;
+      if (remoteSnapshot?.data) {
+        localImportedCount = await upsertImportData(remoteSnapshot.data);
+      }
+
+      // 2. Export local snapshot and send to Render PostgreSQL server
+      const [
+        localUsers,
+        localPatients,
+        localInventory,
+        localBills,
+        localBillItems,
+        localPrescriptions,
+        localInvestigations,
+        localNotes,
+        localVitals,
+        localAppointments,
+        localPricing,
+        localWards
+      ] = await Promise.all([
+        prisma.user.findMany(),
+        prisma.patient.findMany(),
+        prisma.inventory.findMany(),
+        prisma.bill.findMany(),
+        prisma.billItem.findMany(),
+        prisma.prescription.findMany(),
+        prisma.investigation.findMany(),
+        prisma.clinicalNote.findMany(),
+        prisma.vitalSign.findMany(),
+        prisma.appointment.findMany(),
+        prisma.servicePricing.findMany(),
+        prisma.ward.findMany()
+      ]);
+
+      const localPayload = {
+        data: {
+          users: localUsers,
+          patients: localPatients,
+          inventory: localInventory,
+          bills: localBills,
+          billItems: localBillItems,
+          prescriptions: localPrescriptions,
+          investigations: localInvestigations,
+          notes: localNotes,
+          vitals: localVitals,
+          appointments: localAppointments,
+          pricing: localPricing,
+          wards: localWards
+        }
+      };
+
+      const pushRes = await fetch(importEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localPayload)
+      });
+
+      const pushData = await pushRes.json().catch(() => ({}));
+
+      res.json({
+        success: true,
+        message: 'Bidirectional sync with Render PostgreSQL server completed successfully',
+        localImportedRecords: localImportedCount,
+        remoteImportedRecords: pushData?.importedRecords || 0,
+        syncedAt: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('Remote sync error:', err);
+      res.status(500).json({ error: 'Remote synchronization failed: ' + err.message });
+    }
+  });
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });

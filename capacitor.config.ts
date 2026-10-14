@@ -2,10 +2,27 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.hospital.app',
-  appName: 'Hospital Management System',
+  appName: 'VIVI Hospital & Pharmacy',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true,
+    allowNavigation: [
+      '*'
+    ]
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: '#0f172a',
+      showSpinner: true,
+      androidSpinnerStyle: 'large'
+    },
+    Keyboard: {
+      resize: 'body',
+      style: 'dark',
+      resizeOnFullScreen: true
+    }
   }
 };
 
