@@ -62,7 +62,7 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] text-slate-900 font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#f8fafc] text-slate-900 font-sans overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Mobile Backdrop */}
       {mobileMenuOpen && (
         <div
@@ -74,7 +74,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-52 sm:w-56 bg-white border-r border-[#E5E7EB] flex flex-col transition-transform duration-300 ease-in-out",
+          "fixed lg:static inset-y-0 left-0 z-50 w-60 sm:w-64 lg:w-56 bg-white border-r border-[#E5E7EB] flex flex-col transition-transform duration-300 ease-in-out",
           mobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
         )}
       >
