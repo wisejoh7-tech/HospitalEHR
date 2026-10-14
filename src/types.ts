@@ -27,7 +27,7 @@ export interface Bed {
   patient?: Patient;
 }
 
-export type WorkflowStatus = 'registered' | 'vitals' | 'consultation' | 'laboratory' | 'radiology' | 'physiotherapy' | 'treatment' | 'pharmacy' | 'discharged';
+export type WorkflowStatus = 'registered' | 'triage' | 'vitals' | 'consultation' | 'laboratory' | 'radiology' | 'physiotherapy' | 'treatment' | 'pharmacy' | 'discharged';
 
 export interface Patient {
   id: string;
@@ -47,6 +47,7 @@ export interface Patient {
   admissionDate: string;
   status: 'inpatient' | 'outpatient' | 'discharged';
   workflowStatus: WorkflowStatus; // The current stage in clinical workflow
+  triagePriority?: 'ESI-1' | 'ESI-2' | 'ESI-3' | 'ESI-4' | 'ESI-5' | string;
   wardId?: string;
   bedId?: string;
   dischargeReason?: string;

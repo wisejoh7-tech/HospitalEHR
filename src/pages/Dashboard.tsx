@@ -28,6 +28,7 @@ export default function Dashboard() {
     totalPatients: 0,
     occupancyRate: 0,
     activeCritical: 0,
+    emergencyTriageCount: 0,
     bedsAvailable: 0,
     pendingLabs: 0,
     pendingRadiology: 0,
@@ -119,7 +120,8 @@ export default function Dashboard() {
 
         setStats({
           totalPatients: active.length,
-          activeCritical: patients.filter(p => p.bloodGroup === 'AB-').length,
+          activeCritical: patients.filter(p => p.triagePriority === 'ESI-1' || p.triagePriority === 'ESI-2').length,
+          emergencyTriageCount: patients.filter(p => p.workflowStatus === 'triage' || p.triagePriority === 'ESI-1' || p.triagePriority === 'ESI-2').length,
           bedsAvailable: totalBeds - occupiedBeds,
           occupancyRate: totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0,
           pendingLabs: investigations.filter(i => i.type === 'laboratory').length,
@@ -144,8 +146,8 @@ export default function Dashboard() {
 
   const statCards = [
     { label: 'Total Inpatients', value: stats.totalPatients, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Critical / ER Triage', value: stats.emergencyTriageCount, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
     { label: 'Pending Labs', value: stats.pendingLabs, icon: Activity, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Radiology Wait', value: stats.pendingRadiology, icon: FileSearch, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Beds Available', value: stats.bedsAvailable, icon: BedIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 

@@ -38,6 +38,7 @@ export default function PatientRegistration() {
     nextOfKinPhone: '',
     nextOfKinRelationship: '',
     status: 'outpatient' as 'inpatient' | 'outpatient',
+    triagePriority: 'ESI-3',
     nextVisit: ''
   });
 
@@ -333,6 +334,7 @@ export default function PatientRegistration() {
                    {(['outpatient', 'inpatient'] as const).map(s => (
                      <button
                         key={s}
+                        type="button"
                         onClick={() => setFormData({...formData, status: s})}
                         className={cn(
                           "flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all",
@@ -342,6 +344,23 @@ export default function PatientRegistration() {
                        {s}
                      </button>
                    ))}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <AlertCircle size={14} className="text-red-500" /> Triage Level (Emergency Index)
+                  </label>
+                  <select
+                    className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs"
+                    value={formData.triagePriority}
+                    onChange={(e) => setFormData({...formData, triagePriority: e.target.value})}
+                  >
+                    <option value="ESI-1">ESI Level 1 - Resuscitation (Immediate Life-saving)</option>
+                    <option value="ESI-2">ESI Level 2 - Emergent (High Risk / Confusion / Severe Pain)</option>
+                    <option value="ESI-3">ESI Level 3 - Urgent (Multiple Resources Needed)</option>
+                    <option value="ESI-4">ESI Level 4 - Less Urgent (One Resource Needed)</option>
+                    <option value="ESI-5">ESI Level 5 - Non-Urgent (No Resources Needed)</option>
+                  </select>
                 </div>
                 {formData.status === 'outpatient' && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">

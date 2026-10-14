@@ -702,6 +702,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Name, gender, and date of birth are required' });
       }
 
+      const { triagePriority } = req.body;
       const patient = await prisma.patient.create({
         data: {
           name,
@@ -716,7 +717,8 @@ async function startServer() {
           photoUrl,
           fingerprint,
           status: status || 'outpatient',
-          workflowStatus: workflowStatus || 'vitals'
+          workflowStatus: workflowStatus || 'vitals',
+          triagePriority: triagePriority || null
         }
       });
       await logAction('system', 'System', `Registered patient: ${patient.name}. Sent to Vitals.`, patient.id, 'Patient');
