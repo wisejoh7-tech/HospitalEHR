@@ -1,16 +1,94 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu } = require('electron');
 const path = require('path');
+const http = require('http');
+const { spawn } = require('child_process');
 
-let mainWindow;
+let mainWindow = null;
+let tray = null;
+let serverProcess = null;
+
+const GOT_SINGLE_INSTANCE_LOCK = app.requestSingleInstanceLock();
+if (!GOT_SINGLE_INSTANCE_LOCK) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
+function checkServerHealth(url, timeout = 1000) {
+  return new Promise((resolve) => {
+    const req = http.get(`${url}/api/health`, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.setTimeout(timeout, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function ensureLocalBackend() {
+  const isRunning = await checkServerHealth('http://localhost:3000');
+  if (isRunning) {
+    console.log('✅ Backend server already running on port 3000');
+    return;
+  }
+
+  console.log('🚀 Spawning local SQLite Express backend for Windows Desktop application...');
+  const env = {
+    ...process.env,
+    PORT: '3000',
+    DATABASE_URL: process.env.DATABASE_URL || 'file:./local.db',
+    NODE_ENV: process.env.NODE_ENV || 'production'
+  };
+
+  try {
+    const serverScript = path.join(__dirname, '../server.ts');
+    serverProcess = spawn('npx', ['tsx', serverScript], {
+      env,
+      cwd: path.join(__dirname, '..'),
+      stdio: 'ignore',
+      detached: false
+    });
+
+    serverProcess.on('error', (err) => {
+      console.error('Failed to launch local server process:', err);
+    });
+  } catch (err) {
+    console.error('Error starting local server:', err);
+  }
+}
+
+function createTray() {
+  try {
+    tray = new Tray(path.join(__dirname, 'icon.png'));
+    const contextMenu = Menu.buildFromTemplate([
+      { label: 'Open Hospital System', click: () => mainWindow && mainWindow.show() },
+      { label: 'Local SQLite Mode', enabled: false },
+      { type: 'separator' },
+      { label: 'Quit Application', click: () => app.quit() }
+    ]);
+    tray.setToolTip('Hospital Management & Pharmacy Local System');
+    tray.setContextMenu(contextMenu);
+  } catch {
+    // Icon fallback silently ignored if image file not found
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 900,
-    minHeight: 600,
-    title: 'Hospital Management System',
+    width: 1366,
+    height: 860,
+    minWidth: 960,
+    minHeight: 640,
+    title: 'VIVI Hospital & Pharmacy Management System (Local SQLite & Sync)',
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -24,15 +102,17 @@ function createWindow() {
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    // In production build or default mode
-    const indexPath = path.join(__dirname, '../dist/index.html');
-    mainWindow.loadFile(indexPath).catch(() => {
-      // Fallback to devUrl server if dist bundle is serving through backend
-      mainWindow.loadURL(devUrl);
+    mainWindow.loadURL('http://localhost:3000').catch(() => {
+      const indexPath = path.join(__dirname, '../dist/index.html');
+      mainWindow.loadFile(indexPath);
     });
   }
 
-  // Open target="_blank" links in external browser
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
+  // Open external web links in default system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http:') || url.startsWith('https:')) {
       shell.openExternal(url);
@@ -46,8 +126,10 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await ensureLocalBackend();
   createWindow();
+  createTray();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -57,6 +139,9 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (serverProcess) {
+    serverProcess.kill();
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }

@@ -12,6 +12,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "postinstall": "prisma generate",
+    "db:push:sqlite": "prisma db push --schema=prisma/schema.sqlite.prisma",
+    "db:push:postgres": "prisma db push --schema=prisma/schema.prisma",
     "electron:dev": "NODE_ENV=development electron .",
     "electron:build": "npm run build && electron-builder",
     "cap:sync": "npm run build && npx cap sync",
@@ -33,7 +35,10 @@
       "category": "public.app-category.medical"
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
       "target": "AppImage"

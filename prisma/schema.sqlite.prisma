@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  uid       String?  @unique
+  name      String
+  email     String?  @unique
+  phone     String?  @unique
+  password  String?
+  role      String   // doctor, nurse, admin, etc.
+  createdAt DateTime @default(now())
+}
+
+model Ward {
+  id       String @id @default(uuid())
+  name     String
+  type     String @default("General")
+  capacity Int
+  beds     Bed[]
+}
+
+model Bed {
+  id        String   @id @default(uuid())
+  status    String   // vacant, occupied, maintenance
+  wardId    String
+  ward      Ward     @relation(fields: [wardId], references: [id])
+  patientId String?  @unique
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+}
+
+model Patient {
+  id            String         @id @default(uuid())
+  name          String
+  gender        String
+  dob           DateTime
+  age           Int?
+  bloodGroup    String?
+  address       String?
+  nextOfKinName String?
+  nextOfKinPhone String?
+  nextOfKinRelationship String?
+  photoUrl      String?        // Base64 or URL
+  fingerprint   String?        // Mock hash
+  nextVisit     DateTime?
+  allergies     String?        // Stored as comma-separated or JSON
+  admissionDate DateTime       @default(now())
+  status        String         // inpatient, outpatient, discharged
+  workflowStatus String        @default("registered") // registered, vitals, consultation, treatment, pharmacy, discharged
+  bed           Bed?
+  wardId        String?
+  bedId         String?
+  dischargeReason String?
+  diagnosis     String?
+  notes         ClinicalNote[]
+  prescriptions Prescription[]
+  investigations Investigation[]
+  vitals        VitalSign[]
+  bills         Bill[]
+  treatmentPlans TreatmentPlan[]
+  reviews       Review[]
+  appointments  Appointment[]
+  physiotherapyReferrals PhysiotherapyReferral[]
+}
+
+model PhysiotherapyReferral {
+  id                 String   @id @default(uuid())
+  patientId          String
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  referredBy         String
+  clinicalIndication String
+  bodyRegion         String
+  treatmentType      String
+  sessionsRequested  Int      @default(1)
+  sessionsCompleted  Int      @default(0)
+  priority           String   @default("routine")
+  status             String   @default("pending")
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Appointment {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String?
+  doctorName  String?
+  dateTime    DateTime
+  reason      String
+  status      String   // scheduled, completed, cancelled
+  type        String   // consultation, follow-up, investigation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Bill {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  totalAmount Float    @default(0)
+  items       BillItem[]
+  status      String   // pending, paid
+  createdAt   DateTime @default(now())
+}
+
+model BillItem {
+  id          String   @id @default(uuid())
+  billId      String
+  bill        Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  type        String   // medication, investigation, consultation, ward
+  createdAt   DateTime @default(now())
+}
+
+model TreatmentPlan {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  content     String
+  authorId    String
+  authorName  String
+  createdAt   DateTime @default(now())
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  content     String
+  authorId    String
+  authorName  String
+  createdAt   DateTime @default(now())
+}
+
+model VitalSign {
+  id         String   @id @default(uuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  bp         String?  // Systolic/Diastolic
+  pulse      Int?
+  temp       Float?
+  resp       Int?
+  spo2       Int?
+  weight     Float?
+  takenBy    String
+  createdAt  DateTime @default(now())
+}
+
+model Investigation {
+  id           String   @id @default(uuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type         String   // laboratory, radiology
+  category     String   // e.g., Hematology, X-Ray, CT Scan
+  testName     String
+  status       String   // pending, completed, reviewed
+  priority     String   // routine, urgent, emergency
+  requestedBy  String
+  result       String?  // Textual result or summary
+  fileUrl      String?  // URL/Path to uploaded file
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ClinicalNote {
+  id         String   @id @default(uuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorId   String
+  authorName String
+  type       String   // physician, nursing, vitals
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+model Prescription {
+  id         String   @id @default(uuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorId   String
+  authorName String   @default("Unknown")
+  medication String
+  dosage     String
+  frequency  String
+  duration   String
+  status     String   // active, discontinued, completed
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String
+  userName     String
+  action       String
+  resourceId   String?
+  resourceType String?
+  timestamp    DateTime @default(now())
+}
+
+model Inventory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String?
+  description String?
+  stockLevel  Int      @default(0)
+  price       Float    @default(0)
+  unit        String   @default("pcs")
+  expiryDate  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ServicePricing {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., 'consultation', 'bed_fee', 'nurse_fee', 'lab_test_name'
+  category    String // e.g., 'clinical', 'ward', 'investigation'
+  price       Float    @default(0)
+  updatedAt   DateTime @updatedAt
+}
