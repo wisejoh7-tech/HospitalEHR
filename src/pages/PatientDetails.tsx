@@ -445,7 +445,7 @@ export default function PatientDetails() {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const context = notes.map(n => `[${n.type.toUpperCase()}] ${n.content}`).join('\n');
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: `Summarize the following clinical notes for patient ${patient?.name}: \n\n${context}\n\nProvide a concise 3-sentence clinical summary and highlight immediate concerns.`,
       });
       setSummary(response.text || "Summary unavailable.");
@@ -545,6 +545,7 @@ export default function PatientDetails() {
                  className="px-4 py-2 bg-white border border-gray-100 rounded-lg text-xs font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-100"
                >
                  <option value="registered">Registered</option>
+                  <option value="triage">Triage</option>
                  <option value="vitals">Nursing (Vitals)</option>
                  <option value="consultation">Doctor (Consultation)</option>
                  <option value="laboratory">Laboratory</option>
@@ -680,6 +681,34 @@ export default function PatientDetails() {
           <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Demographics</h3>
              <div className="space-y-3">
+               <div className="flex justify-between items-center">
+                 <span className="text-xs font-bold text-gray-400 uppercase">Triage Level</span>
+                 <select
+                   value={patient.triagePriority || 'ESI-3'}
+                   onChange={async (e) => {
+                     try {
+                       const val = e.target.value;
+                       await apiService.updatePatient(id!, { triagePriority: val });
+                       setPatient(prev => prev ? { ...prev, triagePriority: val } : null);
+                     } catch (err) {
+                       alert('Failed to update triage priority');
+                     }
+                   }}
+                   className={cn(
+                     "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border outline-none cursor-pointer",
+                     patient.triagePriority === 'ESI-1' ? "bg-red-50 text-red-700 border-red-200" :
+                     patient.triagePriority === 'ESI-2' ? "bg-orange-50 text-orange-700 border-orange-200" :
+                     patient.triagePriority === 'ESI-3' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                     "bg-emerald-50 text-emerald-700 border-emerald-200"
+                   )}
+                 >
+                   <option value="ESI-1">ESI-1 (Immediate)</option>
+                   <option value="ESI-2">ESI-2 (Emergent)</option>
+                   <option value="ESI-3">ESI-3 (Urgent)</option>
+                   <option value="ESI-4">ESI-4 (Less Urgent)</option>
+                   <option value="ESI-5">ESI-5 (Non-Urgent)</option>
+                 </select>
+               </div>
                <div className="flex justify-between">
                  <span className="text-xs font-bold text-gray-400 uppercase">DOB</span>
                  <span className="text-sm font-bold text-gray-900">{formatDate(patient.dob)}</span>

@@ -28,6 +28,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const WORKFLOW_STEPS: { id: WorkflowStatus; label: string; icon: any; color: string; roles: string[] }[] = [
   { id: 'registered', label: 'Reception', icon: UserPlus, color: 'text-gray-500', roles: ['admin', 'record'] },
+  { id: 'triage', label: 'Triage / ER', icon: AlertCircle, color: 'text-red-500', roles: ['nurse', 'doctor', 'admin'] },
   { id: 'vitals', label: 'Nursing (Pre)', icon: Activity, color: 'text-emerald-500', roles: ['nurse', 'admin'] },
   { id: 'consultation', label: 'Doctor', icon: Stethoscope, color: 'text-blue-500', roles: ['doctor', 'admin'] },
   { id: 'laboratory', label: 'Laboratory', icon: Database, color: 'text-amber-500', roles: ['scientist', 'admin', 'lab'] },
@@ -421,6 +422,20 @@ export default function PatientsList() {
                              <p className="text-[10px] font-bold text-gray-400 tracking-tighter uppercase">{patient.id}</p>
                              <span className="w-1 h-1 rounded-full bg-gray-300" />
                              <p className="text-[10px] font-bold text-blue-500 uppercase">{patient.status}</p>
+                             {patient.triagePriority && (
+                               <>
+                                 <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                 <span className={cn(
+                                   "px-1.5 py-0.5 rounded text-[9px] font-black uppercase",
+                                   patient.triagePriority === 'ESI-1' ? "bg-red-100 text-red-700" :
+                                   patient.triagePriority === 'ESI-2' ? "bg-orange-100 text-orange-700" :
+                                   patient.triagePriority === 'ESI-3' ? "bg-amber-100 text-amber-700" :
+                                   "bg-emerald-100 text-emerald-700"
+                                 )}>
+                                   {patient.triagePriority}
+                                 </span>
+                               </>
+                             )}
                           </div>
                         </div>
                       </div>
