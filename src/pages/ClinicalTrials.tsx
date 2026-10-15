@@ -266,7 +266,7 @@ export default function ClinicalTrials() {
               <CheckCircle2 size={22} />
            </div>
            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">IRB Certifications</p>
-           <h3 className="text-xl sm:text-2xl font-black text-gray-900">100%</h3>
+           <h3 className="text-xl sm:text-2xl font-black text-gray-900">5 Active (100%)</h3>
         </div>
       </div>
 
