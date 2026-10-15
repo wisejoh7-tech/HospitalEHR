@@ -233,6 +233,33 @@ async function startServer() {
 
   await Promise.all([ensureAdmin(), ensureWards(), ensurePricing()]);
 
+  // Server-Sent Events (SSE) Real-Time Notification Engine
+  const sseClients: Set<express.Response> = new Set();
+
+  function broadcastEvent(type: string, payload: any) {
+    const eventData = `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`;
+    sseClients.forEach((client) => {
+      try {
+        client.write(eventData);
+      } catch (err) {
+        sseClients.delete(client);
+      }
+    });
+  }
+
+  app.get('/api/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    sseClients.add(res);
+
+    req.on('close', () => {
+      sseClients.delete(res);
+    });
+  });
+
   const ensureInventory = async () => {
     try {
       const count = await prisma.inventory.count();
@@ -1229,6 +1256,7 @@ async function startServer() {
         }
       });
       await logAction('system', 'System', `Registered patient: ${patient.name}. Sent to Vitals.`, patient.id, 'Patient');
+      broadcastEvent('patient_registered', { id: patient.id, name: patient.name, triagePriority });
       res.status(201).json(patient);
     } catch (error) {
       console.error('Patient registration error:', error);
@@ -1412,6 +1440,7 @@ async function startServer() {
         }
       });
       await logAction(req.body.takenBy || 'unknown', req.body.takenBy || 'Nurse', `Recorded vitals for patient`, req.params.id, 'VitalSign');
+      broadcastEvent('vitals_recorded', { patientId: req.params.id, vitals });
       
       // Auto-bill nurse fee
       const pricing = await prisma.servicePricing.findUnique({ where: { name: 'nurse_fee' } });
@@ -1981,6 +2010,14 @@ async function startServer() {
     } catch (error) {
       res.status(500).json({ error: 'Failed to create note' });
     }
+  });
+
+  // Immutability Guard: Reject PUT/PATCH/DELETE on ClinicalNote
+  app.all('/api/patients/:patientId/notes/:noteId', (req, res) => {
+    if (['PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      return res.status(403).json({ error: 'Clinical Notes are immutable and cannot be edited or deleted.' });
+    }
+    return res.status(405).json({ error: 'Method not allowed' });
   });
 
   // Seed Helper (for development)

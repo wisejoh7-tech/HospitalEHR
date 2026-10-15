@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 import { 
   LayoutDashboard, 
   Users, 
@@ -33,6 +34,12 @@ export default function Layout() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useRealtimeNotifications((evt) => {
+    if (evt.type === 'patient_registered') {
+      console.log('Realtime notification: New patient registered', evt.data);
+    }
+  });
 
   const handleLogout = async () => {
     logout();
