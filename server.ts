@@ -1018,7 +1018,20 @@ async function startServer() {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
-      let allUsers = await prisma.user.findMany();
+      const isAdminIdentifier =
+        rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
+        phonesMatch(rawIdentifier, adminPhone) ||
+        rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
+        rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
+        phonesMatch(rawIdentifier, '08000000000') ||
+        rawIdentifier.toLowerCase() === 'admin';
+
+      let allUsers: any[] = [];
+      try {
+        allUsers = await prisma.user.findMany();
+      } catch (dbErr) {
+        console.error('Database query error in login:', dbErr);
+      }
 
       let user = allUsers.find(u => {
         const matchesId = u.id && u.id === rawIdentifier;
@@ -1029,14 +1042,6 @@ async function startServer() {
         const matchesName = u.name && u.name.toLowerCase() === rawIdentifier.toLowerCase();
         return Boolean(matchesId || matchesUid || matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
       }) || null;
-
-      const isAdminIdentifier =
-        rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
-        phonesMatch(rawIdentifier, adminPhone) ||
-        rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
-        rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
-        phonesMatch(rawIdentifier, '08000000000') ||
-        rawIdentifier.toLowerCase() === 'admin';
 
       // Fallback: If searching for admin credentials specifically
       if (!user && isAdminIdentifier) {
@@ -1058,11 +1063,22 @@ async function startServer() {
         if (ensured) user = ensured;
       }
 
+      // Final fallback for Admin if DB unreachable/disconnected
+      if (!user && isAdminIdentifier && cleanPassword === adminPassword) {
+        user = {
+          id: 'admin-fallback-id',
+          name: adminName,
+          email: adminEmail,
+          phone: adminPhone,
+          role: 'admin'
+        };
+      }
+
       if (!user) {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
-      if (user.password !== cleanPassword) {
+      if (user.password && user.password !== cleanPassword) {
         if (isAdminIdentifier && cleanPassword === adminPassword) {
           const updatedAdmin = await ensureAdmin();
           if (updatedAdmin && updatedAdmin.password === cleanPassword) {
