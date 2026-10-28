@@ -23,6 +23,7 @@ export default function StaffManagement() {
   const [newStaff, setNewStaff] = useState({ 
     name: '', 
     phone: '', 
+    email: '',
     password: '', 
     role: 'doctor' as UserRole
   });
@@ -49,8 +50,8 @@ export default function StaffManagement() {
       return;
     }
 
-    if (!newStaff.name.trim() || !newStaff.phone.trim() || !newStaff.password.trim()) {
-      setModalError('All fields (Name, Phone, Password) are required.');
+    if (!newStaff.name.trim() || (!newStaff.phone.trim() && !newStaff.email.trim()) || !newStaff.password.trim()) {
+      setModalError('Name, Password, and either Phone Number or Email Address are required.');
       return;
     }
 
@@ -58,13 +59,14 @@ export default function StaffManagement() {
     try {
       const cleanedStaff = {
         name: newStaff.name.trim(),
-        phone: newStaff.phone.replace(/\s+/g, '').replace(/-/g, '').trim(),
+        phone: newStaff.phone.replace(/\s+/g, '').replace(/-/g, '').trim() || undefined,
+        email: newStaff.email.trim().toLowerCase() || undefined,
         password: newStaff.password.trim(),
         role: newStaff.role
       };
       await apiService.registerStaff(cleanedStaff, profile.role);
       setShowAddModal(false);
-      setNewStaff({ name: '', phone: '', password: '', role: 'doctor' as UserRole });
+      setNewStaff({ name: '', phone: '', email: '', password: '', role: 'doctor' as UserRole });
       fetchStaff();
     } catch (err: any) {
       console.error(err);
@@ -250,9 +252,15 @@ export default function StaffManagement() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Full Name</label>
                       <input className="w-full p-2.5 bg-gray-50 rounded-xl border-none text-xs font-bold" required value={newStaff.name} onChange={e => setNewStaff({...newStaff, name: e.target.value})} placeholder="e.g. Dr. John Doe" />
                    </div>
-                   <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Phone Number</label>
-                      <input className="w-full p-2.5 bg-gray-50 rounded-xl border-none text-xs font-bold" required type="tel" value={newStaff.phone} onChange={e => setNewStaff({...newStaff, phone: e.target.value})} placeholder="e.g. 08012345678" />
+                   <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Email Address</label>
+                        <input className="w-full p-2.5 bg-gray-50 rounded-xl border-none text-xs font-bold" type="email" value={newStaff.email} onChange={e => setNewStaff({...newStaff, email: e.target.value})} placeholder="user@hospital.com" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Phone Number</label>
+                        <input className="w-full p-2.5 bg-gray-50 rounded-xl border-none text-xs font-bold" type="tel" value={newStaff.phone} onChange={e => setNewStaff({...newStaff, phone: e.target.value})} placeholder="08012345678" />
+                      </div>
                    </div>
                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
