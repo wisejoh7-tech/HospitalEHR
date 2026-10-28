@@ -53,6 +53,7 @@ model Patient {
   admissionDate DateTime       @default(now())
   status        String         // inpatient, outpatient, discharged
   workflowStatus String        @default("registered") // registered, vitals, consultation, treatment, pharmacy, discharged
+  triagePriority String?       // ESI-1, ESI-2, ESI-3, ESI-4, ESI-5
   bed           Bed?
   wardId        String?
   bedId         String?
@@ -171,14 +172,16 @@ model Investigation {
 }
 
 model ClinicalNote {
-  id         String   @id @default(uuid())
-  patientId  String
-  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  authorId   String
-  authorName String
-  type       String   // physician, nursing, vitals
-  content    String
-  createdAt  DateTime @default(now())
+  id           String   @id @default(uuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorId     String
+  authorName   String
+  type         String   // physician, nursing, vitals, addendum
+  content      String
+  version      Int      @default(1)
+  parentNoteId String?
+  createdAt    DateTime @default(now())
 }
 
 model Prescription {

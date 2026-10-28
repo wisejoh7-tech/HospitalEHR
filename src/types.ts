@@ -163,7 +163,7 @@ export interface VitalSign {
   createdAt: string;
 }
 
-export type NoteType = 'physician' | 'nursing' | 'vitals';
+export type NoteType = 'physician' | 'nursing' | 'vitals' | 'addendum';
 
 export interface ClinicalNote {
   id: string;
@@ -172,6 +172,8 @@ export interface ClinicalNote {
   authorName: string;
   type: NoteType;
   content: string;
+  version?: number;
+  parentNoteId?: string;
   createdAt: string;
 }
 
