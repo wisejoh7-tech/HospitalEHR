@@ -92,31 +92,60 @@ async function startServer() {
     return false;
   };
 
-  // Configurable admin credentials via environment variables
-  const adminName = (process.env.ADMIN_NAME || 'System Admin').trim();
-  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hospital.com').trim().toLowerCase();
-  const adminPhone = (process.env.ADMIN_PHONE || '08000000000').trim();
-  const adminPassword = (process.env.ADMIN_PASSWORD || 'admin').trim();
+  // Utility to strip leading/trailing quotes and whitespace from environment variables
+  const cleanEnvStr = (val?: string): string => {
+    return (val || '').trim().replace(/^["']|["']$/g, '').trim();
+  };
 
-  // Ensure default admin exists
+  // Configurable admin credentials via environment variables
+  const getAdminConfig = () => {
+    return {
+      adminName: cleanEnvStr(process.env.ADMIN_NAME) || 'System Admin',
+      adminEmail: cleanEnvStr(process.env.ADMIN_EMAIL) || 'admin@hospital.com',
+      adminPhone: cleanEnvStr(process.env.ADMIN_PHONE) || '08000000000',
+      adminPassword: cleanEnvStr(process.env.ADMIN_PASSWORD) || 'admin',
+    };
+  };
+
+  // Ensure default admin exists and is synchronized with environment variables
   const ensureAdmin = async () => {
     try {
-      const allUsers = await prisma.user.findMany();
-      const existingAdminByEmail = allUsers.find(u => u.email && u.email.trim().toLowerCase() === adminEmail);
-      const existingAdminByPhone = allUsers.find(u => u.phone && phonesMatch(u.phone, adminPhone));
-      const existingAdminByRole = allUsers.find(u => u.role === 'admin');
+      const { adminName, adminEmail, adminPhone, adminPassword } = getAdminConfig();
 
-      if (existingAdminByEmail && existingAdminByPhone && existingAdminByEmail.id !== existingAdminByPhone.id) {
-        // Resolve duplicate admin entries safely before update
-        await prisma.user.delete({ where: { id: existingAdminByPhone.id } });
+      const adminsByEmail = await prisma.user.findMany({
+        where: { email: { equals: adminEmail, mode: 'insensitive' } }
+      });
+      const adminsByPhone = await prisma.user.findMany({
+        where: { phone: adminPhone }
+      });
+
+      // Candidates matching configured admin email or phone
+      const candidateMap = new Map<string, any>();
+      [...adminsByEmail, ...adminsByPhone].forEach(u => candidateMap.set(u.id, u));
+      const candidates = Array.from(candidateMap.values());
+
+      let primaryAdmin = candidates[0] || null;
+
+      if (!primaryAdmin) {
+        primaryAdmin = await prisma.user.findFirst({
+          where: { role: 'admin' }
+        });
       }
 
-      const targetAdmin = existingAdminByEmail || existingAdminByPhone || existingAdminByRole;
+      if (candidates.length > 1) {
+        // Resolve duplicate entries matching the specific admin email or phone safely
+        for (let i = 1; i < candidates.length; i++) {
+          try {
+            await prisma.user.delete({ where: { id: candidates[i].id } });
+          } catch {
+            // Ignore if already removed
+          }
+        }
+      }
 
-      let result;
-      if (targetAdmin) {
-        result = await prisma.user.update({
-          where: { id: targetAdmin.id },
+      if (primaryAdmin) {
+        primaryAdmin = await prisma.user.update({
+          where: { id: primaryAdmin.id },
           data: {
             name: adminName,
             email: adminEmail,
@@ -126,7 +155,7 @@ async function startServer() {
           }
         });
       } else {
-        result = await prisma.user.create({
+        primaryAdmin = await prisma.user.create({
           data: {
             name: adminName,
             phone: adminPhone,
@@ -136,8 +165,8 @@ async function startServer() {
           }
         });
       }
-      console.log(`✅ Default admin account verified (${adminPhone} or ${adminEmail})`);
-      return result;
+      console.log(`✅ System admin account verified (${adminPhone} / ${adminEmail})`);
+      return primaryAdmin;
     } catch (err) {
       console.error('Failed to ensure default admin:', err);
       return null;
@@ -1011,27 +1040,16 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { identifier, phone, email, password } = req.body;
-      const rawIdentifier = (identifier || phone || email || '').toString().trim();
-      const cleanPassword = password ? String(password).trim() : '';
+      const rawIdentifier = cleanEnvStr(identifier || phone || email);
+      const cleanPassword = cleanEnvStr(password);
 
       if (!cleanPassword || !rawIdentifier) {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
-      const isAdminIdentifier =
-        rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
-        phonesMatch(rawIdentifier, adminPhone) ||
-        rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
-        rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
-        phonesMatch(rawIdentifier, '08000000000') ||
-        rawIdentifier.toLowerCase() === 'admin';
+      const { adminName, adminEmail, adminPhone, adminPassword } = getAdminConfig();
 
-      let allUsers: any[] = [];
-      try {
-        allUsers = await prisma.user.findMany();
-      } catch (dbErr) {
-        console.error('Database query error in login:', dbErr);
-      }
+      let allUsers = await prisma.user.findMany();
 
       let user = allUsers.find(u => {
         const matchesId = u.id && u.id === rawIdentifier;
@@ -1043,24 +1061,24 @@ async function startServer() {
         return Boolean(matchesId || matchesUid || matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
       }) || null;
 
-      // Fallback: If searching for admin credentials specifically
-      if (!user && isAdminIdentifier) {
-        user = allUsers.find(u =>
-          (u.email && u.email.toLowerCase() === adminEmail.toLowerCase()) ||
-          (u.phone && phonesMatch(u.phone, adminPhone)) ||
-          (u.name && u.name.toLowerCase() === adminName.toLowerCase()) ||
-          u.role === 'admin'
-        ) || null;
+      const isAdminIdentifier =
+        rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
+        phonesMatch(rawIdentifier, adminPhone) ||
+        rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
+        rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
+        phonesMatch(rawIdentifier, '08000000000') ||
+        rawIdentifier.toLowerCase() === 'admin' ||
+        user?.role === 'admin';
 
-        if (!user) {
-          const ensured = await ensureAdmin();
-          if (ensured) user = ensured;
-        }
+      if (!user && isAdminIdentifier) {
+        user = await ensureAdmin();
       }
 
-      if (!user && (allUsers.length === 0 || isAdminIdentifier)) {
-        const ensured = await ensureAdmin();
-        if (ensured) user = ensured;
+      if (user && isAdminIdentifier) {
+        const updatedAdmin = await ensureAdmin();
+        if (updatedAdmin) {
+          user = updatedAdmin;
+        }
       }
 
       // Final fallback for Admin if DB unreachable/disconnected
@@ -1078,17 +1096,12 @@ async function startServer() {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
-      if (user.password && user.password !== cleanPassword) {
-        if (isAdminIdentifier && cleanPassword === adminPassword) {
-          const updatedAdmin = await ensureAdmin();
-          if (updatedAdmin && updatedAdmin.password === cleanPassword) {
-            user = updatedAdmin;
-          } else {
-            return res.status(401).json({ error: 'Invalid email/phone or password' });
-          }
-        } else {
-          return res.status(401).json({ error: 'Invalid email/phone or password' });
-        }
+      const passwordMatches =
+        user.password === cleanPassword ||
+        (isAdminIdentifier && cleanPassword === adminPassword);
+
+      if (!passwordMatches) {
+        return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
       res.json(user);
