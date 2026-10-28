@@ -22,6 +22,7 @@ import {
   GraduationCap,
   FlaskConical,
   BookOpenText,
+  Scale,
   Menu,
   X
 } from 'lucide-react';
@@ -58,7 +59,8 @@ export default function Layout() {
     { icon: BookOpenText, label: 'Academic Rounds', path: '/academic-rounds', roles: ['admin', 'doctor'] },
     { icon: GraduationCap, label: 'Medical Education', path: '/medical-education', roles: ['admin', 'doctor'] },
     { icon: FlaskConical, label: 'Clinical Research', path: '/clinical-research', roles: ['admin', 'doctor'] },
-    { icon: Banknote, label: 'Billing', path: '/billing', roles: ['admin', 'doctor'] },
+    { icon: Banknote, label: 'Billing', path: '/billing', roles: ['admin', 'doctor', 'finance', 'finance_admin'] },
+    { icon: Scale, label: 'Reconciliation', path: '/reconciliation', roles: ['admin', 'finance', 'finance_admin'] },
     { icon: Settings, label: 'Revenue Config', path: '/revenue', roles: ['admin'] },
     { icon: ClipboardList, label: 'Records', path: '/records', roles: ['admin', 'record'] },
     { icon: Users, label: 'Staff Management', path: '/staff', roles: ['admin'] },

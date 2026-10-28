@@ -1,4 +1,4 @@
-export type UserRole = 'doctor' | 'nurse' | 'admin' | 'record' | 'pharmacy' | 'pharmacy_admin' | 'lab' | 'radiology' | 'physiotherapist' | 'physio';
+export type UserRole = 'doctor' | 'nurse' | 'admin' | 'record' | 'pharmacy' | 'pharmacy_admin' | 'lab' | 'radiology' | 'physiotherapist' | 'physio' | 'finance' | 'finance_admin';
 
 export interface UserProfile {
   uid?: string;
@@ -61,6 +61,9 @@ export interface Patient {
   reviews?: Review[];
   appointments?: Appointment[];
   physiotherapyReferrals?: PhysiotherapyReferral[];
+  paymentRecords?: PaymentRecord[];
+  refundRecords?: RefundRecord[];
+  insuranceReimbursements?: InsuranceReimbursement[];
 }
 
 export interface PhysiotherapyReferral {
@@ -110,8 +113,142 @@ export interface Bill {
   id: string;
   patientId: string;
   totalAmount: number;
-  status: 'pending' | 'paid';
+  status: 'pending' | 'paid' | 'partially_paid';
   items: BillItem[];
+  payments?: PaymentRecord[];
+  refunds?: RefundRecord[];
+  createdAt: string;
+}
+
+export interface BankAccount {
+  id: string;
+  accountName: string;
+  accountNumber: string; // Masked for non-finance or stored securely
+  bankName: string;
+  currency: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface BankStatementImport {
+  id: string;
+  bankAccountId: string;
+  filename: string;
+  importedBy: string;
+  importedByName: string;
+  periodStart?: string;
+  periodEnd?: string;
+  totalRecords: number;
+  matchedRecords: number;
+  status: string;
+  createdAt: string;
+  transactions?: BankTransaction[];
+}
+
+export interface BankTransaction {
+  id: string;
+  bankAccountId: string;
+  bankAccount?: BankAccount;
+  importId?: string;
+  transactionDate: string;
+  valueDate?: string;
+  description: string;
+  reference?: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  reconciliationStatus: 'unmatched' | 'matched' | 'discrepancy' | 'flagged';
+  matchedPaymentId?: string;
+  matchedRefundId?: string;
+  matchedClaimId?: string;
+  matchedSettlementId?: string;
+  reconciledAt?: string;
+  reconciledBy?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  receiptNumber: string;
+  billId?: string;
+  bill?: Bill;
+  patientId?: string;
+  patient?: Patient;
+  amount: number;
+  paymentMethod: 'bank_transfer' | 'pos' | 'card' | 'cash' | 'insurance';
+  paymentReference?: string;
+  status: 'pending_verification' | 'verified' | 'reconciled' | 'rejected';
+  reconciledTransactionId?: string;
+  receivedBy: string;
+  notes?: string;
+  createdAt: string;
+  refunds?: RefundRecord[];
+}
+
+export interface RefundRecord {
+  id: string;
+  refundNumber: string;
+  paymentRecordId?: string;
+  paymentRecord?: PaymentRecord;
+  billId?: string;
+  bill?: Bill;
+  patientId?: string;
+  patient?: Patient;
+  amount: number;
+  reason: string;
+  refundMethod: 'bank_transfer' | 'card' | 'cash';
+  refundReference?: string;
+  status: 'pending_approval' | 'approved' | 'processed' | 'reconciled' | 'rejected';
+  approvedBy?: string;
+  reconciledTransactionId?: string;
+  createdAt: string;
+}
+
+export interface InsuranceReimbursement {
+  id: string;
+  claimNumber: string;
+  providerName: string;
+  patientId?: string;
+  patient?: Patient;
+  billedAmount: number;
+  approvedAmount: number;
+  paidAmount: number;
+  paymentReference?: string;
+  status: 'submitted' | 'partial' | 'settled' | 'reconciled' | 'disputed';
+  reconciledTransactionId?: string;
+  createdAt: string;
+  settledAt?: string;
+}
+
+export interface ProviderSettlement {
+  id: string;
+  settlementBatchId: string;
+  provider: string;
+  grossAmount: number;
+  feeAmount: number;
+  netAmount: number;
+  settlementDate: string;
+  transactionCount: number;
+  status: 'unmatched' | 'reconciled' | 'discrepancy';
+  reconciledTransactionId?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface DailyReconciliationReport {
+  id: string;
+  reportDate: string;
+  totalBankCredits: number;
+  totalBankDebits: number;
+  totalVerifiedPayments: number;
+  totalProcessedRefunds: number;
+  totalInsuranceSettled: number;
+  totalProviderSettled: number;
+  matchedTransactionsCount: number;
+  unmatchedTransactionsCount: number;
+  discrepancyCount: number;
+  status: 'draft' | 'finalized' | 'closed';
+  generatedBy: string;
   createdAt: string;
 }
 

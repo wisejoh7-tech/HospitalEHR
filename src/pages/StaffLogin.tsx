@@ -38,6 +38,8 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
       case 'radiology': return '/investigations';
       case 'record': return '/patients';
       case 'doctor': return '/patients';
+      case 'finance':
+      case 'finance_admin': return '/reconciliation';
       case 'admin': return '/dashboard';
       default: return '/';
     }
@@ -78,6 +80,8 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
     { value: 'pharmacy_admin', label: 'Pharmacy Admin' },
     { value: 'lab', label: 'Lab Technician' },
     { value: 'radiology', label: 'Radiologist' },
+    { value: 'finance', label: 'Finance Staff' },
+    { value: 'finance_admin', label: 'Finance Manager' },
   ];
 
   const handleLogin = async (e: React.FormEvent) => {
