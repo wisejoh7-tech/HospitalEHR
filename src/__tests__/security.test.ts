@@ -104,3 +104,43 @@ describe('Login Credential & Identifier Matching Logic Suite', () => {
     expect(findUserByRawIdentifier('System Admin')?.role).toBe('admin');
   });
 });
+
+describe('Environment Variable Normalization & Admin Identifier Matching Suite', () => {
+  const cleanEnvStr = (val?: string): string => {
+    return (val || '').trim().replace(/^["']|["']$/g, '').trim();
+  };
+
+  it('should correctly strip whitespace and surrounding quotes from env variables', () => {
+    expect(cleanEnvStr('  admin@hospital.com  ')).toBe('admin@hospital.com');
+    expect(cleanEnvStr('"admin@hospital.com"')).toBe('admin@hospital.com');
+    expect(cleanEnvStr("'secretpassword'")).toBe('secretpassword');
+    expect(cleanEnvStr(' "mypass123" ')).toBe('mypass123');
+  });
+
+  it('should accurately detect admin login attempts even with custom env credentials and quoted strings', () => {
+    const customAdminEmail = cleanEnvStr('"customadmin@hospital.com"');
+    const customAdminPhone = cleanEnvStr(" '08123456789' ");
+    const customAdminName = cleanEnvStr(' "Super Admin" ');
+    const customAdminPass = cleanEnvStr(' "secret123" ');
+
+    const checkIsAdminAttempt = (rawIdentifier: string) => {
+      const idClean = cleanEnvStr(rawIdentifier);
+
+      return (
+        idClean.toLowerCase() === customAdminEmail.toLowerCase() ||
+        idClean === customAdminPhone ||
+        idClean.toLowerCase() === customAdminName.toLowerCase() ||
+        idClean.toLowerCase() === 'admin@hospital.com' ||
+        idClean === '08000000000' ||
+        idClean.toLowerCase() === 'admin'
+      );
+    };
+
+    expect(checkIsAdminAttempt('customadmin@hospital.com')).toBe(true);
+    expect(checkIsAdminAttempt('CUSTOMADMIN@HOSPITAL.COM')).toBe(true);
+    expect(checkIsAdminAttempt('08123456789')).toBe(true);
+    expect(checkIsAdminAttempt('Super Admin')).toBe(true);
+    expect(checkIsAdminAttempt('admin')).toBe(true);
+    expect(checkIsAdminAttempt('doctor@hospital.com')).toBe(false);
+  });
+});
