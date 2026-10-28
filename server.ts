@@ -357,6 +357,20 @@ async function startServer() {
     }
   }
 
+  // RBAC Middleware Helper
+  const requireRoles = (...allowedRoles: string[]) => {
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const role = (req.headers['x-user-role'] as string) || '';
+      if (!role) {
+        return res.status(401).json({ error: 'Unauthorized: Missing user role header' });
+      }
+      if (role === 'admin' || allowedRoles.includes(role)) {
+        return next();
+      }
+      return res.status(403).json({ error: `Forbidden: Role '${role}' is not permitted for this action.` });
+    };
+  };
+
   // Database & Sync Engine
   const isSQLiteDatabase = (): boolean => {
     const url = (process.env.DATABASE_URL || '').toLowerCase();
@@ -1213,7 +1227,7 @@ async function startServer() {
   });
 
   // Patients
-  app.post('/api/patients', async (req, res) => {
+  app.post('/api/patients', requireRoles('admin', 'record', 'nurse', 'doctor'), async (req, res) => {
     try {
       const {
         name,
@@ -1431,7 +1445,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/vitals', async (req, res) => {
+  app.post('/api/patients/:id/vitals', requireRoles('admin', 'nurse', 'doctor'), async (req, res) => {
     try {
       const vitals = await prisma.vitalSign.create({
         data: {
@@ -1469,7 +1483,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/prescriptions', async (req, res) => {
+  app.post('/api/patients/:id/prescriptions', requireRoles('admin', 'doctor'), async (req, res) => {
     try {
       const { medication, dosage, frequency, duration, authorId, authorName } = req.body;
       const prescription = await prisma.prescription.create({
@@ -1491,7 +1505,7 @@ async function startServer() {
     }
   });
 
-  app.patch('/api/prescriptions/:id', async (req, res) => {
+  app.patch('/api/prescriptions/:id', requireRoles('admin', 'doctor', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const { status } = req.body;
       const rx = await prisma.prescription.update({
@@ -1533,7 +1547,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/inventory', async (req, res) => {
+  app.post('/api/inventory', requireRoles('admin', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const { name, category, stockLevel, unit, description, expiryDate, price } = req.body;
       const item = await prisma.inventory.create({
@@ -1553,7 +1567,7 @@ async function startServer() {
     }
   });
 
-  app.patch('/api/inventory/category/rename', async (req, res) => {
+  app.patch('/api/inventory/category/rename', requireRoles('admin', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const { oldCategory, newCategory } = req.body;
       if (!oldCategory || !newCategory) {
@@ -1571,7 +1585,7 @@ async function startServer() {
     }
   });
 
-  app.patch('/api/inventory/:id', async (req, res) => {
+  app.patch('/api/inventory/:id', requireRoles('admin', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const { name, category, stockLevel, unit, description, expiryDate, price } = req.body;
       const item = await prisma.inventory.update({
@@ -1593,7 +1607,7 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/inventory/:id', async (req, res) => {
+  app.delete('/api/inventory/:id', requireRoles('admin', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const item = await prisma.inventory.delete({
         where: { id: req.params.id }
@@ -1606,7 +1620,7 @@ async function startServer() {
     }
   });
 
-  app.patch('/api/investigations/:id', async (req, res) => {
+  app.patch('/api/investigations/:id', requireRoles('admin', 'doctor', 'lab', 'radiology', 'scientist', 'radiographer'), async (req, res) => {
     try {
       const { status, result, fileUrl } = req.body;
       const inv = await prisma.investigation.update({
@@ -1642,7 +1656,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/physiotherapy', async (req, res) => {
+  app.post('/api/patients/:id/physiotherapy', requireRoles('admin', 'doctor'), async (req, res) => {
     try {
       const { referredBy, clinicalIndication, bodyRegion, treatmentType, sessionsRequested, priority, notes } = req.body;
       const referral = await prisma.physiotherapyReferral.create({
@@ -1668,7 +1682,7 @@ async function startServer() {
     }
   });
 
-  app.patch('/api/physiotherapy/referrals/:id', async (req, res) => {
+  app.patch('/api/physiotherapy/referrals/:id', requireRoles('admin', 'doctor', 'physiotherapist', 'physio'), async (req, res) => {
     try {
       const { status, sessionsCompleted, notes } = req.body;
       const updated = await prisma.physiotherapyReferral.update({
@@ -1704,7 +1718,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/investigations', async (req, res) => {
+  app.post('/api/patients/:id/investigations', requireRoles('admin', 'doctor', 'nurse'), async (req, res) => {
     try {
       const { type, category, testName, priority, requestedBy } = req.body;
       const inv = await prisma.investigation.create({
@@ -1895,19 +1909,26 @@ async function startServer() {
     }
   });
 
-  app.get('/api/patients', async (req, res) => {
+  app.get('/api/patients', requireRoles('admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer', 'physiotherapist', 'physio'), async (req, res) => {
     try {
+      const reqUserId = (req.headers['x-user-id'] as string) || 'system';
+      const reqUserName = (req.headers['x-user-name'] as string) || (req.headers['x-user-role'] as string) || 'Staff';
+
       const patients = await prisma.patient.findMany({
         orderBy: { admissionDate: 'desc' }
       });
+      await logAction(reqUserId, reqUserName, 'Accessed patient directory', undefined, 'Patient');
       res.json(patients);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch patients' });
     }
   });
 
-  app.get('/api/patients/:id', async (req, res) => {
+  app.get('/api/patients/:id', requireRoles('admin', 'doctor', 'nurse', 'record', 'pharmacy', 'pharmacy_admin', 'lab', 'radiology', 'scientist', 'radiographer', 'physiotherapist', 'physio'), async (req, res) => {
     try {
+      const reqUserId = (req.headers['x-user-id'] as string) || 'system';
+      const reqUserName = (req.headers['x-user-name'] as string) || (req.headers['x-user-role'] as string) || 'Staff';
+
       const patient = await prisma.patient.findUnique({
         where: { id: req.params.id },
         include: { 
@@ -1923,6 +1944,8 @@ async function startServer() {
         }
       });
       if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+      await logAction(reqUserId, reqUserName, `Viewed patient medical record: ${patient.name}`, patient.id, 'Patient');
       res.json(patient);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch patient details' });
@@ -1993,19 +2016,42 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/notes', async (req, res) => {
+  app.post('/api/patients/:id/notes', requireRoles('admin', 'doctor', 'nurse'), async (req, res) => {
     try {
-      const { content, type, authorId, authorName } = req.body;
+      const { content, type, authorId, authorName, parentNoteId } = req.body;
+      let version = 1;
+      let targetType = type || 'physician';
+
+      if (parentNoteId) {
+        const parentNote = await prisma.clinicalNote.findUnique({
+          where: { id: parentNoteId }
+        });
+        if (parentNote) {
+          const countExisting = await prisma.clinicalNote.count({
+            where: {
+              OR: [
+                { id: parentNoteId },
+                { parentNoteId: parentNoteId }
+              ]
+            }
+          });
+          version = countExisting + 1;
+          targetType = 'addendum';
+        }
+      }
+
       const note = await prisma.clinicalNote.create({
         data: {
           content,
-          type,
+          type: targetType,
           authorId,
           authorName,
+          version,
+          parentNoteId: parentNoteId || null,
           patientId: req.params.id
         }
       });
-      await logAction(authorId, authorName, `Added ${type} note`, req.params.id, 'ClinicalNote');
+      await logAction(authorId, authorName, `Added ${targetType} note (v${version})`, req.params.id, 'ClinicalNote');
       res.status(201).json(note);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create note' });
@@ -2018,6 +2064,243 @@ async function startServer() {
       return res.status(403).json({ error: 'Clinical Notes are immutable and cannot be edited or deleted.' });
     }
     return res.status(405).json({ error: 'Method not allowed' });
+  });
+
+  // HL7 FHIR R4 Interoperability Converters & Endpoints
+  function toFhirPatient(p: any) {
+    return {
+      resourceType: 'Patient',
+      id: p.id,
+      active: p.status !== 'discharged',
+      name: [{
+        use: 'official',
+        text: p.name,
+        family: p.name.split(' ').slice(-1)[0] || '',
+        given: p.name.split(' ').slice(0, -1)
+      }],
+      gender: p.gender === 'male' ? 'male' : p.gender === 'female' ? 'female' : 'other',
+      birthDate: p.dob ? new Date(p.dob).toISOString().split('T')[0] : undefined,
+      address: p.address ? [{ text: p.address }] : [],
+      contact: p.nextOfKinName ? [{
+        relationship: [{ text: p.nextOfKinRelationship || 'Emergency Contact' }],
+        name: { text: p.nextOfKinName },
+        telecom: p.nextOfKinPhone ? [{ system: 'phone', value: p.nextOfKinPhone }] : []
+      }] : []
+    };
+  }
+
+  function toFhirObservation(v: any) {
+    const components: any[] = [];
+    if (v.bp) {
+      const parts = v.bp.split('/');
+      if (parts.length === 2) {
+        components.push({
+          code: { coding: [{ system: 'http://loinc.org', code: '8480-6', display: 'Systolic blood pressure' }] },
+          valueQuantity: { value: parseFloat(parts[0]), unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' }
+        });
+        components.push({
+          code: { coding: [{ system: 'http://loinc.org', code: '8462-4', display: 'Diastolic blood pressure' }] },
+          valueQuantity: { value: parseFloat(parts[1]), unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' }
+        });
+      }
+    }
+    if (v.temp) {
+      components.push({
+        code: { coding: [{ system: 'http://loinc.org', code: '8310-5', display: 'Body temperature' }] },
+        valueQuantity: { value: v.temp, unit: 'C', system: 'http://unitsofmeasure.org', code: 'Cel' }
+      });
+    }
+    if (v.pulse) {
+      components.push({
+        code: { coding: [{ system: 'http://loinc.org', code: '8867-4', display: 'Heart rate' }] },
+        valueQuantity: { value: v.pulse, unit: '/min', system: 'http://unitsofmeasure.org', code: '/min' }
+      });
+    }
+    if (v.spo2) {
+      components.push({
+        code: { coding: [{ system: 'http://loinc.org', code: '2708-6', display: 'Oxygen saturation' }] },
+        valueQuantity: { value: v.spo2, unit: '%', system: 'http://unitsofmeasure.org', code: '%' }
+      });
+    }
+
+    return {
+      resourceType: 'Observation',
+      id: v.id,
+      status: 'final',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs', display: 'Vital Signs' }] }],
+      subject: { reference: `Patient/${v.patientId}` },
+      effectiveDateTime: v.createdAt ? new Date(v.createdAt).toISOString() : new Date().toISOString(),
+      performer: [{ display: v.takenBy || 'Nurse' }],
+      component: components
+    };
+  }
+
+  function toFhirMedicationRequest(rx: any) {
+    return {
+      resourceType: 'MedicationRequest',
+      id: rx.id,
+      status: rx.status === 'active' ? 'active' : rx.status === 'completed' ? 'completed' : 'stopped',
+      intent: 'order',
+      medicationCodeableConcept: {
+        text: rx.medication
+      },
+      subject: { reference: `Patient/${rx.patientId}` },
+      requester: { display: rx.authorName || 'Doctor' },
+      dosageInstruction: [{
+        text: `${rx.dosage} ${rx.frequency} for ${rx.duration}`
+      }],
+      authoredOn: rx.createdAt ? new Date(rx.createdAt).toISOString() : new Date().toISOString()
+    };
+  }
+
+  function toFhirDiagnosticReport(inv: any) {
+    return {
+      resourceType: 'DiagnosticReport',
+      id: inv.id,
+      status: inv.status === 'completed' || inv.status === 'reviewed' ? 'final' : 'registered',
+      code: { text: inv.testName },
+      subject: { reference: `Patient/${inv.patientId}` },
+      effectiveDateTime: inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString(),
+      issued: inv.updatedAt ? new Date(inv.updatedAt).toISOString() : undefined,
+      conclusion: inv.result || undefined,
+      presentedForm: inv.fileUrl ? [{ url: inv.fileUrl }] : []
+    };
+  }
+
+  function toFhirEncounter(p: any) {
+    return {
+      resourceType: 'Encounter',
+      id: `enc-${p.id}`,
+      status: p.status === 'inpatient' ? 'in-progress' : 'finished',
+      class: {
+        system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
+        code: p.status === 'inpatient' ? 'IMP' : 'AMB',
+        display: p.status === 'inpatient' ? 'inpatient encounter' : 'ambulatory'
+      },
+      subject: { reference: `Patient/${p.id}`, display: p.name },
+      period: {
+        start: p.admissionDate ? new Date(p.admissionDate).toISOString() : undefined
+      },
+      location: p.wardId ? [{ location: { display: `Ward: ${p.wardId}, Bed: ${p.bedId || 'N/A'}` } }] : []
+    };
+  }
+
+  app.get('/api/fhir/R4/Patient', async (req, res) => {
+    try {
+      const patients = await prisma.patient.findMany({ orderBy: { admissionDate: 'desc' } });
+      const bundle = {
+        resourceType: 'Bundle',
+        type: 'searchset',
+        total: patients.length,
+        entry: patients.map(p => ({
+          fullUrl: `${req.protocol}://${req.get('host')}/api/fhir/R4/Patient/${p.id}`,
+          resource: toFhirPatient(p)
+        }))
+      };
+      res.json(bundle);
+    } catch (err: any) {
+      res.status(500).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'exception', diagnostics: err.message }] });
+    }
+  });
+
+  app.get('/api/fhir/R4/Patient/:id', async (req, res) => {
+    try {
+      const patient = await prisma.patient.findUnique({ where: { id: req.params.id } });
+      if (!patient) {
+        return res.status(404).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }] });
+      }
+      res.json(toFhirPatient(patient));
+    } catch (err: any) {
+      res.status(500).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'exception', diagnostics: err.message }] });
+    }
+  });
+
+  app.get('/api/fhir/R4/Observation', async (req, res) => {
+    try {
+      const { patient } = req.query;
+      const vitals = await prisma.vitalSign.findMany({
+        where: patient ? { patientId: String(patient) } : {},
+        orderBy: { createdAt: 'desc' }
+      });
+      const bundle = {
+        resourceType: 'Bundle',
+        type: 'searchset',
+        total: vitals.length,
+        entry: vitals.map(v => ({
+          fullUrl: `${req.protocol}://${req.get('host')}/api/fhir/R4/Observation/${v.id}`,
+          resource: toFhirObservation(v)
+        }))
+      };
+      res.json(bundle);
+    } catch (err: any) {
+      res.status(500).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'exception', diagnostics: err.message }] });
+    }
+  });
+
+  app.get('/api/fhir/R4/MedicationRequest', async (req, res) => {
+    try {
+      const { patient } = req.query;
+      const prescriptions = await prisma.prescription.findMany({
+        where: patient ? { patientId: String(patient) } : {},
+        orderBy: { createdAt: 'desc' }
+      });
+      const bundle = {
+        resourceType: 'Bundle',
+        type: 'searchset',
+        total: prescriptions.length,
+        entry: prescriptions.map(rx => ({
+          fullUrl: `${req.protocol}://${req.get('host')}/api/fhir/R4/MedicationRequest/${rx.id}`,
+          resource: toFhirMedicationRequest(rx)
+        }))
+      };
+      res.json(bundle);
+    } catch (err: any) {
+      res.status(500).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'exception', diagnostics: err.message }] });
+    }
+  });
+
+  app.get('/api/fhir/R4/DiagnosticReport', async (req, res) => {
+    try {
+      const { patient } = req.query;
+      const investigations = await prisma.investigation.findMany({
+        where: patient ? { patientId: String(patient) } : {},
+        orderBy: { createdAt: 'desc' }
+      });
+      const bundle = {
+        resourceType: 'Bundle',
+        type: 'searchset',
+        total: investigations.length,
+        entry: investigations.map(inv => ({
+          fullUrl: `${req.protocol}://${req.get('host')}/api/fhir/R4/DiagnosticReport/${inv.id}`,
+          resource: toFhirDiagnosticReport(inv)
+        }))
+      };
+      res.json(bundle);
+    } catch (err: any) {
+      res.status(500).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'exception', diagnostics: err.message }] });
+    }
+  });
+
+  app.get('/api/fhir/R4/Encounter', async (req, res) => {
+    try {
+      const { patient } = req.query;
+      const patients = await prisma.patient.findMany({
+        where: patient ? { id: String(patient) } : {},
+        orderBy: { admissionDate: 'desc' }
+      });
+      const bundle = {
+        resourceType: 'Bundle',
+        type: 'searchset',
+        total: patients.length,
+        entry: patients.map(p => ({
+          fullUrl: `${req.protocol}://${req.get('host')}/api/fhir/R4/Encounter/enc-${p.id}`,
+          resource: toFhirEncounter(p)
+        }))
+      };
+      res.json(bundle);
+    } catch (err: any) {
+      res.status(500).json({ resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'exception', diagnostics: err.message }] });
+    }
   });
 
   // Seed Helper (for development)
