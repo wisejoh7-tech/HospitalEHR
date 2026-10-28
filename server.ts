@@ -113,20 +113,12 @@ async function startServer() {
         await prisma.user.delete({ where: { id: existingAdminByPhone.id } });
       }
 
-      if (existingAdminByEmail) {
-        await prisma.user.update({
-          where: { id: existingAdminByEmail.id },
-          data: {
-            name: adminName,
-            email: adminEmail,
-            phone: adminPhone,
-            password: adminPassword,
-            role: 'admin'
-          }
-        });
-      } else if (existingAdminByPhone) {
-        await prisma.user.update({
-          where: { id: existingAdminByPhone.id },
+      const targetAdmin = existingAdminByEmail || existingAdminByPhone;
+
+      let result;
+      if (targetAdmin) {
+        result = await prisma.user.update({
+          where: { id: targetAdmin.id },
           data: {
             name: adminName,
             email: adminEmail,
@@ -136,7 +128,7 @@ async function startServer() {
           }
         });
       } else {
-        await prisma.user.create({
+        result = await prisma.user.create({
           data: {
             name: adminName,
             phone: adminPhone,
@@ -147,8 +139,10 @@ async function startServer() {
         });
       }
       console.log(`✅ Default admin account verified (${adminPhone} or ${adminEmail})`);
+      return result;
     } catch (err) {
       console.error('Failed to ensure default admin:', err);
+      return null;
     }
   };
 
@@ -1026,7 +1020,7 @@ async function startServer() {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
 
-      const allUsers = await prisma.user.findMany();
+      let allUsers = await prisma.user.findMany();
 
       let user = allUsers.find(u => {
         const matchesEmail = u.email && u.email.toLowerCase() === rawIdentifier.toLowerCase();
@@ -1036,24 +1030,32 @@ async function startServer() {
         return Boolean(matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
       }) || null;
 
+      const isAdminIdentifier =
+        rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
+        phonesMatch(rawIdentifier, adminPhone) ||
+        rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
+        rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
+        phonesMatch(rawIdentifier, '08000000000') ||
+        rawIdentifier.toLowerCase() === 'admin';
+
       // Fallback: If searching for admin credentials specifically
-      if (
-        !user &&
-        (
-          rawIdentifier.toLowerCase() === adminEmail.toLowerCase() ||
-          phonesMatch(rawIdentifier, adminPhone) ||
-          rawIdentifier.toLowerCase() === adminName.toLowerCase() ||
-          rawIdentifier.toLowerCase() === 'admin@hospital.com' ||
-          phonesMatch(rawIdentifier, '08000000000') ||
-          rawIdentifier.toLowerCase() === 'admin'
-        )
-      ) {
+      if (!user && isAdminIdentifier) {
         user = allUsers.find(u =>
           (u.email && u.email.toLowerCase() === adminEmail.toLowerCase()) ||
           (u.phone && phonesMatch(u.phone, adminPhone)) ||
           (u.name && u.name.toLowerCase() === adminName.toLowerCase()) ||
           u.role === 'admin'
         ) || null;
+
+        if (!user) {
+          const ensured = await ensureAdmin();
+          if (ensured) user = ensured;
+        }
+      }
+
+      if (!user && (allUsers.length === 0 || isAdminIdentifier)) {
+        const ensured = await ensureAdmin();
+        if (ensured) user = ensured;
       }
 
       if (!user) {
@@ -1061,7 +1063,16 @@ async function startServer() {
       }
 
       if (user.password !== cleanPassword) {
-        return res.status(401).json({ error: 'Invalid email/phone or password' });
+        if (isAdminIdentifier && cleanPassword === adminPassword) {
+          const updatedAdmin = await ensureAdmin();
+          if (updatedAdmin && updatedAdmin.password === cleanPassword) {
+            user = updatedAdmin;
+          } else {
+            return res.status(401).json({ error: 'Invalid email/phone or password' });
+          }
+        } else {
+          return res.status(401).json({ error: 'Invalid email/phone or password' });
+        }
       }
 
       res.json(user);
@@ -2309,10 +2320,15 @@ async function startServer() {
       // Create admin user
       const admin = await prisma.user.upsert({
         where: { phone: '08000000000' },
-        update: {},
+        update: {
+          email: 'admin@hospital.com',
+          password: 'admin',
+          role: 'admin'
+        },
         create: {
           name: 'Chief Admin',
           phone: '08000000000',
+          email: 'admin@hospital.com',
           password: 'admin',
           role: 'admin'
         }
