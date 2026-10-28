@@ -93,23 +93,18 @@ async function startServer() {
   };
 
   // Configurable admin credentials via environment variables
-  const adminName = process.env.ADMIN_NAME || 'System Admin';
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@hospital.com';
-  const adminPhone = process.env.ADMIN_PHONE || '08000000000';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
+  const adminName = (process.env.ADMIN_NAME || 'System Admin').trim();
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hospital.com').trim().toLowerCase();
+  const adminPhone = (process.env.ADMIN_PHONE || '08000000000').trim();
+  const adminPassword = (process.env.ADMIN_PASSWORD || 'admin').trim();
 
   // Ensure default admin exists
   const ensureAdmin = async () => {
     try {
-      const existingAdminByEmail = await prisma.user.findFirst({
-        where: { email: adminEmail }
-      });
-      const existingAdminByPhone = await prisma.user.findFirst({
-        where: { phone: adminPhone }
-      });
-      const existingAdminByRole = await prisma.user.findFirst({
-        where: { role: 'admin' }
-      });
+      const allUsers = await prisma.user.findMany();
+      const existingAdminByEmail = allUsers.find(u => u.email && u.email.trim().toLowerCase() === adminEmail);
+      const existingAdminByPhone = allUsers.find(u => u.phone && phonesMatch(u.phone, adminPhone));
+      const existingAdminByRole = allUsers.find(u => u.role === 'admin');
 
       if (existingAdminByEmail && existingAdminByPhone && existingAdminByEmail.id !== existingAdminByPhone.id) {
         // Resolve duplicate admin entries safely before update
