@@ -1081,6 +1081,17 @@ async function startServer() {
         }
       }
 
+      // Final fallback for Admin if DB unreachable/disconnected
+      if (!user && isAdminIdentifier && cleanPassword === adminPassword) {
+        user = {
+          id: 'admin-fallback-id',
+          name: adminName,
+          email: adminEmail,
+          phone: adminPhone,
+          role: 'admin'
+        };
+      }
+
       if (!user) {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
