@@ -107,13 +107,16 @@ async function startServer() {
       const existingAdminByPhone = await prisma.user.findFirst({
         where: { phone: adminPhone }
       });
+      const existingAdminByRole = await prisma.user.findFirst({
+        where: { role: 'admin' }
+      });
 
       if (existingAdminByEmail && existingAdminByPhone && existingAdminByEmail.id !== existingAdminByPhone.id) {
         // Resolve duplicate admin entries safely before update
         await prisma.user.delete({ where: { id: existingAdminByPhone.id } });
       }
 
-      const targetAdmin = existingAdminByEmail || existingAdminByPhone;
+      const targetAdmin = existingAdminByEmail || existingAdminByPhone || existingAdminByRole;
 
       let result;
       if (targetAdmin) {
@@ -1023,11 +1026,13 @@ async function startServer() {
       let allUsers = await prisma.user.findMany();
 
       let user = allUsers.find(u => {
+        const matchesId = u.id && u.id === rawIdentifier;
+        const matchesUid = u.uid && u.uid === rawIdentifier;
         const matchesEmail = u.email && u.email.toLowerCase() === rawIdentifier.toLowerCase();
         const matchesPhone = u.phone && phonesMatch(u.phone, rawIdentifier);
         const matchesEmailPrefix = u.email && !rawIdentifier.includes('@') && u.email.toLowerCase().startsWith(rawIdentifier.toLowerCase() + '@');
         const matchesName = u.name && u.name.toLowerCase() === rawIdentifier.toLowerCase();
-        return Boolean(matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
+        return Boolean(matchesId || matchesUid || matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
       }) || null;
 
       const isAdminIdentifier =

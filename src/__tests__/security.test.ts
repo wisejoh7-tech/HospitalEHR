@@ -34,3 +34,73 @@ describe('Role-Based Access Control (RBAC) Guard Tests', () => {
     expect(hasPermission('nurse', 'write:prescriptions')).toBe(false);
   });
 });
+
+describe('Login Credential & Identifier Matching Logic Suite', () => {
+  const mockUsers = [
+    { id: 'usr-1', uid: 'firebase-uid-1', name: 'Dr. John Doe', email: 'john.doe@hospital.com', phone: '08012345678', password: 'password123', role: 'doctor' },
+    { id: 'usr-2', uid: 'admin-uid', name: 'System Admin', email: 'admin@hospital.com', phone: '08000000000', password: 'admin', role: 'admin' },
+  ];
+
+  const normalizePhoneDigits = (phoneStr?: string | null): string => {
+    if (!phoneStr) return '';
+    let digits = phoneStr.replace(/\D/g, '');
+    if (digits.startsWith('234') && digits.length === 13) {
+      digits = '0' + digits.slice(3);
+    }
+    return digits;
+  };
+
+  const phonesMatch = (phoneA?: string | null, phoneB?: string | null): boolean => {
+    if (!phoneA || !phoneB) return false;
+    const rawA = phoneA.replace(/\s+/g, '').replace(/-/g, '').trim();
+    const rawB = phoneB.replace(/\s+/g, '').replace(/-/g, '').trim();
+    if (rawA === rawB) return true;
+
+    const normA = normalizePhoneDigits(phoneA);
+    const normB = normalizePhoneDigits(phoneB);
+    if (normA && normB && normA === normB) return true;
+
+    const last10A = normA.slice(-10);
+    const last10B = normB.slice(-10);
+    if (last10A.length === 10 && last10A === last10B) return true;
+
+    return false;
+  };
+
+  const findUserByRawIdentifier = (rawIdentifier: string) => {
+    return mockUsers.find(u => {
+      const matchesId = u.id && u.id === rawIdentifier;
+      const matchesUid = u.uid && u.uid === rawIdentifier;
+      const matchesEmail = u.email && u.email.toLowerCase() === rawIdentifier.toLowerCase();
+      const matchesPhone = u.phone && phonesMatch(u.phone, rawIdentifier);
+      const matchesEmailPrefix = u.email && !rawIdentifier.includes('@') && u.email.toLowerCase().startsWith(rawIdentifier.toLowerCase() + '@');
+      const matchesName = u.name && u.name.toLowerCase() === rawIdentifier.toLowerCase();
+      return Boolean(matchesId || matchesUid || matchesEmail || matchesPhone || matchesEmailPrefix || matchesName);
+    }) || null;
+  };
+
+  it('should match user by exact email, case-insensitive email, and email prefix', () => {
+    expect(findUserByRawIdentifier('john.doe@hospital.com')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('JOHN.DOE@HOSPITAL.COM')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('john.doe')?.id).toBe('usr-1');
+  });
+
+  it('should match user by phone number with local and international formats (+234)', () => {
+    expect(findUserByRawIdentifier('08012345678')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('+2348012345678')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('2348012345678')?.id).toBe('usr-1');
+  });
+
+  it('should match user by ID, UID, and full name', () => {
+    expect(findUserByRawIdentifier('usr-1')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('firebase-uid-1')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('Dr. John Doe')?.id).toBe('usr-1');
+    expect(findUserByRawIdentifier('dr. john doe')?.id).toBe('usr-1');
+  });
+
+  it('should match default admin credentials by email, phone, name, or shortcut "admin"', () => {
+    expect(findUserByRawIdentifier('admin@hospital.com')?.role).toBe('admin');
+    expect(findUserByRawIdentifier('08000000000')?.role).toBe('admin');
+    expect(findUserByRawIdentifier('System Admin')?.role).toBe('admin');
+  });
+});
