@@ -90,7 +90,7 @@ VITE_API_BASE_URL="https://cbt-9v2x.onrender.com"
 
 The application can be run and packaged as a desktop application using **Electron**.
 
-- **Desktop Entry Point:** `electron/main.js`
+- **Desktop Entry Point:** `electron/main.cjs`
 
 ### Run Desktop App in Development Mode:
 ```bash
