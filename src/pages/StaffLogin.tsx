@@ -169,8 +169,8 @@ export default function StaffLogin({ isAdmin = false }: StaffLoginProps) {
       console.error('Registration error:', err);
       const errMsg = err.message || 'Registration failed. Please try again.';
       setError(errMsg);
-      if (errMsg.toLowerCase().includes('already registered')) {
-        const existingIdent = cleanPhone || cleanEmail;
+      if (errMsg.toLowerCase().includes('already registered') || errMsg.toLowerCase().includes('already exists')) {
+        const existingIdent = cleanEmail || cleanPhone;
         if (existingIdent) {
           setIdentifier(existingIdent);
         }

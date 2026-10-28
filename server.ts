@@ -1115,9 +1115,9 @@ async function startServer() {
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error?.code === 'P2002') {
-        return res.status(400).json({ error: 'Email or phone number is already registered' });
+        return res.status(400).json({ error: 'A user with this email or phone number is already registered' });
       }
-      res.status(500).json({ error: error.message || 'Registration failed. Please try again.' });
+      res.status(400).json({ error: error.message || 'Registration failed. Please try again.' });
     }
   });
 
