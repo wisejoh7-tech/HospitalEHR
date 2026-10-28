@@ -16,6 +16,8 @@ interface AuthContextType {
   isPharmacy: boolean;
   isLab: boolean;
   isRadiology: boolean;
+  isFinance: boolean;
+  isFinanceAdmin: boolean;
   completeRegistration: (role: UserRole, name: string) => Promise<void>;
   loginManual: (profile: UserProfile) => void;
   logout: () => void;
@@ -112,6 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isPharmacy: profile?.role === 'pharmacy',
     isLab: profile?.role === 'lab',
     isRadiology: profile?.role === 'radiology',
+    isFinance: profile?.role === 'finance' || profile?.role === 'finance_admin',
+    isFinanceAdmin: profile?.role === 'finance_admin',
     loginManual,
     logout,
   };

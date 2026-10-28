@@ -21,6 +21,7 @@ const Physiotherapy = lazy(() => import('./pages/Physiotherapy'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
 const RevenueSettings = lazy(() => import('./pages/RevenueSettings'));
 const Billing = lazy(() => import('./pages/Billing'));
+const FinancialReconciliation = lazy(() => import('./pages/FinancialReconciliation'));
 const Logs = lazy(() => import('./pages/Logs'));
 const Login = lazy(() => import('./pages/Login'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
@@ -96,7 +97,8 @@ export default function App() {
               <Route path="/pharmacy" element={<ProtectedRoute roles={['admin', 'doctor', 'pharmacy', 'pharmacy_admin']}><Pharmacy /></ProtectedRoute>} />
               <Route path="/physiotherapy" element={<ProtectedRoute roles={['admin', 'doctor', 'physiotherapist', 'physio', 'nurse']}><Physiotherapy /></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute roles={['admin']}><StaffManagement /></ProtectedRoute>} />
-              <Route path="/billing" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Billing /></ProtectedRoute>} />
+              <Route path="/billing" element={<ProtectedRoute roles={['admin', 'record', 'doctor', 'finance', 'finance_admin']}><Billing /></ProtectedRoute>} />
+              <Route path="/reconciliation" element={<ProtectedRoute roles={['admin', 'finance', 'finance_admin']}><FinancialReconciliation /></ProtectedRoute>} />
               <Route path="/appointments" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Appointments /></ProtectedRoute>} />
               <Route path="/academic-rounds" element={<ProtectedRoute roles={['admin', 'doctor']}><AcademicRounds /></ProtectedRoute>} />
               <Route path="/medical-education" element={<ProtectedRoute roles={['admin', 'doctor']}><MedicalEducation /></ProtectedRoute>} />

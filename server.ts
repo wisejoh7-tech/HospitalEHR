@@ -914,6 +914,786 @@ async function startServer() {
     }
   });
 
+  // Financial Reconciliation Helpers & Security Privacy Masking
+  const maskAccountNumber = (accNo: string): string => {
+    if (!accNo || accNo.length <= 4) return '****';
+    return '*'.repeat(accNo.length - 4) + accNo.slice(-4);
+  };
+
+  const sanitizeFinancialNarration = (narration: string): string => {
+    if (!narration) return '';
+    let clean = narration;
+    clean = clean.replace(/Patient ID:\s*[a-zA-Z0-9-]+/gi, 'Patient ID: [REDACTED]');
+    clean = clean.replace(/DOB:\s*\d{2}\/\d{2}\/\d{4}/gi, 'DOB: [REDACTED]');
+    clean = clean.replace(/Diagnosis:\s*[^;\n]+/gi, 'Diagnosis: [REDACTED]');
+    return clean.trim();
+  };
+
+  // Financial Reconciliation Endpoints (Strictly Restricted to Admin & Finance personnel)
+  app.get('/api/reconciliation/bank-accounts', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const accounts = await prisma.bankAccount.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { transactions: true, statements: true } } }
+      });
+      res.json(accounts);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch bank accounts' });
+    }
+  });
+
+  app.post('/api/reconciliation/bank-accounts', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { accountName, accountNumber, bankName, currency } = req.body;
+      if (!accountName || !accountNumber || !bankName) {
+        return res.status(400).json({ error: 'Account Name, Account Number, and Bank Name are required' });
+      }
+
+      const existing = await prisma.bankAccount.findUnique({ where: { accountNumber } });
+      if (existing) {
+        return res.status(400).json({ error: 'Bank account with this account number already exists' });
+      }
+
+      const account = await prisma.bankAccount.create({
+        data: {
+          accountName,
+          accountNumber,
+          bankName,
+          currency: currency || 'NGN'
+        }
+      });
+
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+      await logAction(reqUserId, reqUserName, `Created bank account: ${bankName} (${maskAccountNumber(accountNumber)})`, account.id, 'BankAccount');
+
+      res.status(201).json(account);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to create bank account' });
+    }
+  });
+
+  app.get('/api/reconciliation/statements', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const statements = await prisma.bankStatementImport.findMany({
+        include: { bankAccount: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(statements);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch statement imports' });
+    }
+  });
+
+  app.post('/api/reconciliation/statements/import', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { bankAccountId, filename, records } = req.body;
+      if (!bankAccountId || !Array.isArray(records) || records.length === 0) {
+        return res.status(400).json({ error: 'Bank Account ID and an array of transaction records are required' });
+      }
+
+      const bankAccount = await prisma.bankAccount.findUnique({ where: { id: bankAccountId } });
+      if (!bankAccount) {
+        return res.status(404).json({ error: 'Bank account not found' });
+      }
+
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+
+      const statementImport = await prisma.bankStatementImport.create({
+        data: {
+          bankAccountId,
+          filename: filename || 'Imported_Statement.csv',
+          importedBy: reqUserId,
+          importedByName: reqUserName,
+          totalRecords: records.length,
+          matchedRecords: 0
+        }
+      });
+
+      let insertedCount = 0;
+      let duplicateCount = 0;
+
+      for (const rec of records) {
+        const rawDate = rec.transactionDate || rec.date;
+        const txDate = rawDate ? new Date(rawDate) : new Date();
+        const amt = parseFloat(rec.amount) || 0;
+        const txType = (rec.type || (amt < 0 ? 'debit' : 'credit')).toLowerCase();
+        const absAmount = Math.abs(amt);
+        const ref = rec.reference || rec.ref || null;
+        const sanitizedDesc = sanitizeFinancialNarration(rec.description || rec.narration || 'Bank Transaction');
+
+        // Check for duplicates
+        let existing = null;
+        if (ref) {
+          existing = await prisma.bankTransaction.findFirst({
+            where: { bankAccountId, reference: ref }
+          });
+        }
+        if (!existing) {
+          existing = await prisma.bankTransaction.findFirst({
+            where: {
+              bankAccountId,
+              amount: absAmount,
+              type: txType,
+              transactionDate: txDate,
+              description: sanitizedDesc
+            }
+          });
+        }
+
+        if (existing) {
+          duplicateCount++;
+          continue;
+        }
+
+        await prisma.bankTransaction.create({
+          data: {
+            bankAccountId,
+            importId: statementImport.id,
+            transactionDate: txDate,
+            valueDate: rec.valueDate ? new Date(rec.valueDate) : txDate,
+            description: sanitizedDesc,
+            reference: ref,
+            amount: absAmount,
+            type: txType,
+            reconciliationStatus: 'unmatched'
+          }
+        });
+        insertedCount++;
+      }
+
+      await logAction(
+        reqUserId,
+        reqUserName,
+        `Imported bank statement file "${filename}": ${insertedCount} new transactions, ${duplicateCount} duplicates skipped`,
+        statementImport.id,
+        'BankStatementImport'
+      );
+
+      res.status(201).json({
+        importId: statementImport.id,
+        totalProvided: records.length,
+        insertedCount,
+        duplicateCount
+      });
+    } catch (error: any) {
+      console.error('Bank statement import error:', error);
+      res.status(500).json({ error: error.message || 'Failed to import bank statement' });
+    }
+  });
+
+  app.get('/api/reconciliation/transactions', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { status, bankAccountId, type } = req.query;
+      const transactions = await prisma.bankTransaction.findMany({
+        where: {
+          ...(status && { reconciliationStatus: String(status) }),
+          ...(bankAccountId && { bankAccountId: String(bankAccountId) }),
+          ...(type && { type: String(type) })
+        },
+        include: { bankAccount: true },
+        orderBy: { transactionDate: 'desc' }
+      });
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch bank transactions' });
+    }
+  });
+
+  // Payments / Receipts Management
+  app.get('/api/reconciliation/payments', requireRoles('admin', 'finance', 'finance_admin', 'record', 'doctor'), async (req, res) => {
+    try {
+      const { status, patientId, billId } = req.query;
+      const payments = await prisma.paymentRecord.findMany({
+        where: {
+          ...(status && { status: String(status) }),
+          ...(patientId && { patientId: String(patientId) }),
+          ...(billId && { billId: String(billId) })
+        },
+        include: { patient: true, bill: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch payment records' });
+    }
+  });
+
+  app.post('/api/reconciliation/payments', requireRoles('admin', 'finance', 'finance_admin', 'record'), async (req, res) => {
+    try {
+      const { billId, patientId, amount, paymentMethod, paymentReference, notes } = req.body;
+      if (!amount || parseFloat(amount) <= 0 || !paymentMethod) {
+        return res.status(400).json({ error: 'Valid payment amount and payment method are required' });
+      }
+
+      // Check duplicate payment reference
+      if (paymentReference) {
+        const existingRef = await prisma.paymentRecord.findUnique({
+          where: { paymentReference: String(paymentReference).trim() }
+        });
+        if (existingRef) {
+          return res.status(400).json({ error: `Duplicate payment record: Payment reference '${paymentReference}' has already been processed.` });
+        }
+      }
+
+      const receiptNumber = `RCP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const reqUserId = (req.headers['x-user-id'] as string) || 'system';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Staff';
+
+      const payment = await prisma.paymentRecord.create({
+        data: {
+          receiptNumber,
+          billId: billId || null,
+          patientId: patientId || null,
+          amount: parseFloat(amount),
+          paymentMethod,
+          paymentReference: paymentReference ? String(paymentReference).trim() : null,
+          status: paymentMethod === 'cash' ? 'verified' : 'pending_verification',
+          receivedBy: reqUserName,
+          notes: notes || null
+        },
+        include: { patient: true, bill: true }
+      });
+
+      // Update Bill status if linked
+      if (billId) {
+        const bill = await prisma.bill.findUnique({ where: { id: billId }, include: { payments: true } });
+        if (bill) {
+          const totalPaid = (bill.payments || []).reduce((sum, p) => sum + p.amount, 0) + parseFloat(amount);
+          let newStatus = bill.status;
+          if (totalPaid >= bill.totalAmount) {
+            newStatus = 'paid';
+          } else if (totalPaid > 0) {
+            newStatus = 'partially_paid';
+          }
+          await prisma.bill.update({
+            where: { id: billId },
+            data: { status: newStatus }
+          });
+        }
+      }
+
+      await logAction(
+        reqUserId,
+        reqUserName,
+        `Issued receipt ${receiptNumber} for ${paymentMethod} payment of ${amount}`,
+        payment.id,
+        'PaymentRecord'
+      );
+
+      res.status(201).json(payment);
+    } catch (error: any) {
+      console.error('Payment creation error:', error);
+      res.status(500).json({ error: error.message || 'Failed to record payment' });
+    }
+  });
+
+  app.post('/api/reconciliation/payments/:id/verify', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const payment = await prisma.paymentRecord.update({
+        where: { id: req.params.id },
+        data: { status: 'verified' }
+      });
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+      await logAction(reqUserId, reqUserName, `Verified payment receipt ${payment.receiptNumber}`, payment.id, 'PaymentRecord');
+      res.json(payment);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to verify payment' });
+    }
+  });
+
+  // Refunds Management
+  app.get('/api/reconciliation/refunds', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const refunds = await prisma.refundRecord.findMany({
+        include: { patient: true, bill: true, paymentRecord: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(refunds);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch refund records' });
+    }
+  });
+
+  app.post('/api/reconciliation/refunds', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { paymentRecordId, billId, patientId, amount, reason, refundMethod, refundReference } = req.body;
+      if (!amount || parseFloat(amount) <= 0 || !reason || !refundMethod) {
+        return res.status(400).json({ error: 'Amount, reason, and refund method are required for processing a refund.' });
+      }
+
+      if (refundReference) {
+        const existingRef = await prisma.refundRecord.findUnique({
+          where: { refundReference: String(refundReference).trim() }
+        });
+        if (existingRef) {
+          return res.status(400).json({ error: `Duplicate refund: Refund reference '${refundReference}' has already been recorded.` });
+        }
+      }
+
+      const refundNumber = `RFD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+
+      const refund = await prisma.refundRecord.create({
+        data: {
+          refundNumber,
+          paymentRecordId: paymentRecordId || null,
+          billId: billId || null,
+          patientId: patientId || null,
+          amount: parseFloat(amount),
+          reason,
+          refundMethod,
+          refundReference: refundReference ? String(refundReference).trim() : null,
+          status: 'pending_approval'
+        },
+        include: { patient: true }
+      });
+
+      await logAction(reqUserId, reqUserName, `Created refund request ${refundNumber} for ${amount} (${reason})`, refund.id, 'RefundRecord');
+      res.status(201).json(refund);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to create refund' });
+    }
+  });
+
+  app.post('/api/reconciliation/refunds/:id/approve', requireRoles('admin', 'finance_admin'), async (req, res) => {
+    try {
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-admin';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Admin';
+
+      const refund = await prisma.refundRecord.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'approved',
+          approvedBy: reqUserName
+        }
+      });
+
+      await logAction(reqUserId, reqUserName, `Approved refund ${refund.refundNumber}`, refund.id, 'RefundRecord');
+      res.json(refund);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to approve refund' });
+    }
+  });
+
+  // Insurance Reimbursements
+  app.get('/api/reconciliation/insurance', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const claims = await prisma.insuranceReimbursement.findMany({
+        include: { patient: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(claims);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch insurance claims' });
+    }
+  });
+
+  app.post('/api/reconciliation/insurance', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { claimNumber, providerName, patientId, billedAmount, approvedAmount, paidAmount, paymentReference } = req.body;
+      if (!claimNumber || !providerName || billedAmount === undefined) {
+        return res.status(400).json({ error: 'Claim Number, Provider Name, and Billed Amount are required' });
+      }
+
+      const claim = await prisma.insuranceReimbursement.create({
+        data: {
+          claimNumber: String(claimNumber).trim(),
+          providerName: String(providerName).trim(),
+          patientId: patientId || null,
+          billedAmount: parseFloat(billedAmount),
+          approvedAmount: parseFloat(approvedAmount || billedAmount),
+          paidAmount: parseFloat(paidAmount || 0),
+          paymentReference: paymentReference ? String(paymentReference).trim() : null,
+          status: parseFloat(paidAmount || 0) >= parseFloat(approvedAmount || billedAmount) ? 'settled' : 'submitted'
+        }
+      });
+
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+      await logAction(reqUserId, reqUserName, `Registered insurance reimbursement claim ${claimNumber} from ${providerName}`, claim.id, 'InsuranceReimbursement');
+
+      res.status(201).json(claim);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to register insurance claim' });
+    }
+  });
+
+  // Provider Settlements (POS / Gateway)
+  app.get('/api/reconciliation/settlements', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const settlements = await prisma.providerSettlement.findMany({
+        orderBy: { settlementDate: 'desc' }
+      });
+      res.json(settlements);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch provider settlements' });
+    }
+  });
+
+  app.post('/api/reconciliation/settlements', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { settlementBatchId, provider, grossAmount, feeAmount, settlementDate, transactionCount, notes } = req.body;
+      if (!settlementBatchId || !provider || grossAmount === undefined) {
+        return res.status(400).json({ error: 'Settlement Batch ID, Provider, and Gross Amount are required' });
+      }
+
+      const gross = parseFloat(grossAmount);
+      const fee = parseFloat(feeAmount || 0);
+      const net = gross - fee;
+
+      const existingBatch = await prisma.providerSettlement.findUnique({
+        where: { settlementBatchId: String(settlementBatchId).trim() }
+      });
+      if (existingBatch) {
+        return res.status(400).json({ error: `Settlement batch ID '${settlementBatchId}' has already been ingested.` });
+      }
+
+      const settlement = await prisma.providerSettlement.create({
+        data: {
+          settlementBatchId: String(settlementBatchId).trim(),
+          provider: String(provider).trim(),
+          grossAmount: gross,
+          feeAmount: fee,
+          netAmount: net,
+          settlementDate: settlementDate ? new Date(settlementDate) : new Date(),
+          transactionCount: parseInt(transactionCount) || 1,
+          notes: notes || null
+        }
+      });
+
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+      await logAction(reqUserId, reqUserName, `Imported payment provider settlement ${settlementBatchId} (${provider}) Net: ${net}`, settlement.id, 'ProviderSettlement');
+
+      res.status(201).json(settlement);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to ingest settlement batch' });
+    }
+  });
+
+  // Manual & Auto Reconciliation Engine
+  app.post('/api/reconciliation/match', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const { transactionId, matchType, targetId, notes } = req.body;
+      if (!transactionId || !matchType || !targetId) {
+        return res.status(400).json({ error: 'Transaction ID, Match Type, and Target ID are required' });
+      }
+
+      const tx = await prisma.bankTransaction.findUnique({ where: { id: transactionId } });
+      if (!tx) {
+        return res.status(404).json({ error: 'Bank transaction not found' });
+      }
+
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Staff';
+
+      let updateTxData: any = {
+        reconciliationStatus: 'matched',
+        reconciledAt: new Date(),
+        reconciledBy: reqUserName,
+        notes: notes || tx.notes
+      };
+
+      if (matchType === 'payment') {
+        const payment = await prisma.paymentRecord.findUnique({ where: { id: targetId } });
+        if (!payment) return res.status(404).json({ error: 'Payment record not found' });
+
+        // Discrepancy check
+        if (Math.abs(tx.amount - payment.amount) > 0.01) {
+          updateTxData.reconciliationStatus = 'discrepancy';
+        }
+
+        updateTxData.matchedPaymentId = targetId;
+        await prisma.paymentRecord.update({
+          where: { id: targetId },
+          data: { status: 'reconciled', reconciledTransactionId: tx.id }
+        });
+      } else if (matchType === 'refund') {
+        const refund = await prisma.refundRecord.findUnique({ where: { id: targetId } });
+        if (!refund) return res.status(404).json({ error: 'Refund record not found' });
+
+        if (Math.abs(tx.amount - refund.amount) > 0.01) {
+          updateTxData.reconciliationStatus = 'discrepancy';
+        }
+
+        updateTxData.matchedRefundId = targetId;
+        await prisma.refundRecord.update({
+          where: { id: targetId },
+          data: { status: 'reconciled', reconciledTransactionId: tx.id }
+        });
+      } else if (matchType === 'insurance') {
+        const claim = await prisma.insuranceReimbursement.findUnique({ where: { id: targetId } });
+        if (!claim) return res.status(404).json({ error: 'Insurance claim not found' });
+
+        if (Math.abs(tx.amount - claim.approvedAmount) > 0.01 && Math.abs(tx.amount - claim.paidAmount) > 0.01) {
+          updateTxData.reconciliationStatus = 'discrepancy';
+        }
+
+        updateTxData.matchedClaimId = targetId;
+        await prisma.insuranceReimbursement.update({
+          where: { id: targetId },
+          data: { status: 'reconciled', reconciledTransactionId: tx.id, paidAmount: tx.amount }
+        });
+      } else if (matchType === 'settlement') {
+        const settlement = await prisma.providerSettlement.findUnique({ where: { id: targetId } });
+        if (!settlement) return res.status(404).json({ error: 'Provider settlement not found' });
+
+        if (Math.abs(tx.amount - settlement.netAmount) > 0.01) {
+          updateTxData.reconciliationStatus = 'discrepancy';
+        }
+
+        updateTxData.matchedSettlementId = targetId;
+        await prisma.providerSettlement.update({
+          where: { id: targetId },
+          data: { status: 'reconciled', reconciledTransactionId: tx.id }
+        });
+      } else {
+        return res.status(400).json({ error: 'Invalid matchType. Expected payment, refund, insurance, or settlement' });
+      }
+
+      const updatedTx = await prisma.bankTransaction.update({
+        where: { id: transactionId },
+        data: updateTxData
+      });
+
+      await logAction(
+        reqUserId,
+        reqUserName,
+        `Reconciled bank transaction ${tx.id} (${tx.amount}) with ${matchType} ${targetId}. Status: ${updatedTx.reconciliationStatus}`,
+        tx.id,
+        'BankTransaction'
+      );
+
+      res.json(updatedTx);
+    } catch (error: any) {
+      console.error('Reconciliation error:', error);
+      res.status(500).json({ error: error.message || 'Failed to reconcile transaction' });
+    }
+  });
+
+  app.post('/api/reconciliation/auto-match', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const unmatchedTx = await prisma.bankTransaction.findMany({
+        where: { reconciliationStatus: 'unmatched' }
+      });
+
+      const pendingPayments = await prisma.paymentRecord.findMany({
+        where: { status: { in: ['pending_verification', 'verified'] } }
+      });
+
+      const pendingRefunds = await prisma.refundRecord.findMany({
+        where: { status: 'approved' }
+      });
+
+      const pendingClaims = await prisma.insuranceReimbursement.findMany({
+        where: { status: { in: ['submitted', 'partial', 'settled'] }, reconciledTransactionId: null }
+      });
+
+      const pendingSettlements = await prisma.providerSettlement.findMany({
+        where: { status: 'unmatched' }
+      });
+
+      let autoMatchCount = 0;
+      const reqUserId = (req.headers['x-user-id'] as string) || 'finance-user';
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance Engine';
+
+      for (const tx of unmatchedTx) {
+        if (tx.type === 'credit') {
+          // Check payment reference match first
+          let matchedPayment = pendingPayments.find(p => p.paymentReference && tx.reference && p.paymentReference.trim().toLowerCase() === tx.reference.trim().toLowerCase());
+          if (!matchedPayment) {
+            // Match by exact amount and payment reference in narration
+            matchedPayment = pendingPayments.find(p => Math.abs(p.amount - tx.amount) < 0.01 && (tx.reference && p.receiptNumber && tx.reference.includes(p.receiptNumber)));
+          }
+
+          if (matchedPayment) {
+            await prisma.bankTransaction.update({
+              where: { id: tx.id },
+              data: {
+                reconciliationStatus: 'matched',
+                matchedPaymentId: matchedPayment.id,
+                reconciledAt: new Date(),
+                reconciledBy: reqUserName
+              }
+            });
+            await prisma.paymentRecord.update({
+              where: { id: matchedPayment.id },
+              data: { status: 'reconciled', reconciledTransactionId: tx.id }
+            });
+            autoMatchCount++;
+            continue;
+          }
+
+          // Check provider settlement net amount match
+          const matchedSettlement = pendingSettlements.find(s => Math.abs(s.netAmount - tx.amount) < 0.01 || (tx.reference && s.settlementBatchId && tx.reference.includes(s.settlementBatchId)));
+          if (matchedSettlement) {
+            await prisma.bankTransaction.update({
+              where: { id: tx.id },
+              data: {
+                reconciliationStatus: 'matched',
+                matchedSettlementId: matchedSettlement.id,
+                reconciledAt: new Date(),
+                reconciledBy: reqUserName
+              }
+            });
+            await prisma.providerSettlement.update({
+              where: { id: matchedSettlement.id },
+              data: { status: 'reconciled', reconciledTransactionId: tx.id }
+            });
+            autoMatchCount++;
+            continue;
+          }
+
+          // Check insurance claim
+          const matchedClaim = pendingClaims.find(c => (c.paymentReference && tx.reference && c.paymentReference.trim().toLowerCase() === tx.reference.trim().toLowerCase()) || Math.abs(c.approvedAmount - tx.amount) < 0.01);
+          if (matchedClaim) {
+            await prisma.bankTransaction.update({
+              where: { id: tx.id },
+              data: {
+                reconciliationStatus: 'matched',
+                matchedClaimId: matchedClaim.id,
+                reconciledAt: new Date(),
+                reconciledBy: reqUserName
+              }
+            });
+            await prisma.insuranceReimbursement.update({
+              where: { id: matchedClaim.id },
+              data: { status: 'reconciled', reconciledTransactionId: tx.id, paidAmount: tx.amount }
+            });
+            autoMatchCount++;
+            continue;
+          }
+        } else if (tx.type === 'debit') {
+          // Check refund match
+          const matchedRefund = pendingRefunds.find(r => (r.refundReference && tx.reference && r.refundReference.trim().toLowerCase() === tx.reference.trim().toLowerCase()) || Math.abs(r.amount - tx.amount) < 0.01);
+          if (matchedRefund) {
+            await prisma.bankTransaction.update({
+              where: { id: tx.id },
+              data: {
+                reconciliationStatus: 'matched',
+                matchedRefundId: matchedRefund.id,
+                reconciledAt: new Date(),
+                reconciledBy: reqUserName
+              }
+            });
+            await prisma.refundRecord.update({
+              where: { id: matchedRefund.id },
+              data: { status: 'reconciled', reconciledTransactionId: tx.id }
+            });
+            autoMatchCount++;
+            continue;
+          }
+        }
+      }
+
+      await logAction(reqUserId, reqUserName, `Executed automated reconciliation engine: ${autoMatchCount} transactions auto-matched`, undefined, 'Reconciliation');
+
+      res.json({ success: true, autoMatchCount });
+    } catch (error: any) {
+      console.error('Auto match error:', error);
+      res.status(500).json({ error: error.message || 'Auto-reconciliation engine failed' });
+    }
+  });
+
+  // Daily Reconciliation Reports
+  app.get('/api/reconciliation/reports/daily', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const reports = await prisma.dailyReconciliationReport.findMany({
+        orderBy: { reportDate: 'desc' }
+      });
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch daily reconciliation reports' });
+    }
+  });
+
+  app.post('/api/reconciliation/reports/daily/generate', requireRoles('admin', 'finance', 'finance_admin'), async (req, res) => {
+    try {
+      const targetDate = req.body.date ? new Date(req.body.date) : new Date();
+      targetDate.setHours(0, 0, 0, 0);
+
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      const [
+        bankTxs,
+        payments,
+        refunds,
+        claims,
+        settlements
+      ] = await Promise.all([
+        prisma.bankTransaction.findMany({
+          where: { transactionDate: { gte: targetDate, lt: nextDay } }
+        }),
+        prisma.paymentRecord.findMany({
+          where: { createdAt: { gte: targetDate, lt: nextDay }, status: { in: ['verified', 'reconciled'] } }
+        }),
+        prisma.refundRecord.findMany({
+          where: { createdAt: { gte: targetDate, lt: nextDay }, status: { in: ['processed', 'reconciled'] } }
+        }),
+        prisma.insuranceReimbursement.findMany({
+          where: { createdAt: { gte: targetDate, lt: nextDay } }
+        }),
+        prisma.providerSettlement.findMany({
+          where: { settlementDate: { gte: targetDate, lt: nextDay } }
+        })
+      ]);
+
+      const totalBankCredits = bankTxs.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+      const totalBankDebits = bankTxs.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
+      const totalVerifiedPayments = payments.reduce((s, p) => s + p.amount, 0);
+      const totalProcessedRefunds = refunds.reduce((s, r) => s + r.amount, 0);
+      const totalInsuranceSettled = claims.reduce((s, c) => s + c.paidAmount, 0);
+      const totalProviderSettled = settlements.reduce((s, st) => s + st.netAmount, 0);
+
+      const matchedTransactionsCount = bankTxs.filter(t => t.reconciliationStatus === 'matched').length;
+      const unmatchedTransactionsCount = bankTxs.filter(t => t.reconciliationStatus === 'unmatched').length;
+      const discrepancyCount = bankTxs.filter(t => t.reconciliationStatus === 'discrepancy').length;
+
+      const reqUserName = (req.headers['x-user-name'] as string) || 'Finance System';
+
+      const report = await prisma.dailyReconciliationReport.upsert({
+        where: { reportDate: targetDate },
+        update: {
+          totalBankCredits,
+          totalBankDebits,
+          totalVerifiedPayments,
+          totalProcessedRefunds,
+          totalInsuranceSettled,
+          totalProviderSettled,
+          matchedTransactionsCount,
+          unmatchedTransactionsCount,
+          discrepancyCount,
+          status: 'finalized',
+          generatedBy: reqUserName
+        },
+        create: {
+          reportDate: targetDate,
+          totalBankCredits,
+          totalBankDebits,
+          totalVerifiedPayments,
+          totalProcessedRefunds,
+          totalInsuranceSettled,
+          totalProviderSettled,
+          matchedTransactionsCount,
+          unmatchedTransactionsCount,
+          discrepancyCount,
+          status: 'finalized',
+          generatedBy: reqUserName
+        }
+      });
+
+      res.json(report);
+    } catch (error: any) {
+      console.error('Report generation error:', error);
+      res.status(500).json({ error: error.message || 'Failed to generate daily reconciliation report' });
+    }
+  });
+
   // User Management
   app.get('/api/users', async (req, res) => {
     try {

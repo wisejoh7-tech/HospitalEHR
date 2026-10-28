@@ -14,7 +14,7 @@ model User {
   email     String?  @unique
   phone     String?  @unique
   password  String?
-  role      String   // doctor, nurse, admin, etc.
+  role      String   // doctor, nurse, admin, finance, finance_admin, etc.
   createdAt DateTime @default(now())
 }
 
@@ -68,6 +68,9 @@ model Patient {
   reviews       Review[]
   appointments  Appointment[]
   physiotherapyReferrals PhysiotherapyReferral[]
+  paymentRecords PaymentRecord[]
+  refundRecords  RefundRecord[]
+  insuranceReimbursements InsuranceReimbursement[]
 }
 
 model PhysiotherapyReferral {
@@ -107,7 +110,9 @@ model Bill {
   patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   totalAmount Float    @default(0)
   items       BillItem[]
-  status      String   // pending, paid
+  payments    PaymentRecord[]
+  refunds     RefundRecord[]
+  status      String   // pending, paid, partially_paid
   createdAt   DateTime @default(now())
 }
 
@@ -119,6 +124,142 @@ model BillItem {
   amount      Float
   type        String   // medication, investigation, consultation, ward
   createdAt   DateTime @default(now())
+}
+
+model BankAccount {
+  id            String   @id @default(uuid())
+  accountName   String
+  accountNumber String   @unique
+  bankName      String
+  currency      String   @default("NGN")
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  statements    BankStatementImport[]
+  transactions  BankTransaction[]
+}
+
+model BankStatementImport {
+  id             String   @id @default(uuid())
+  bankAccountId  String
+  bankAccount    BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  filename       String
+  importedBy     String
+  importedByName String
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  totalRecords   Int      @default(0)
+  matchedRecords Int      @default(0)
+  status         String   @default("processed")
+  createdAt      DateTime @default(now())
+  transactions   BankTransaction[]
+}
+
+model BankTransaction {
+  id                    String   @id @default(uuid())
+  bankAccountId         String
+  bankAccount           BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  importId              String?
+  import                BankStatementImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+  transactionDate       DateTime
+  valueDate             DateTime?
+  description           String
+  reference             String?
+  amount                Float
+  type                  String   // credit, debit
+  reconciliationStatus  String   @default("unmatched") // unmatched, matched, discrepancy, flagged
+  matchedPaymentId      String?
+  matchedRefundId       String?
+  matchedClaimId        String?
+  matchedSettlementId   String?
+  reconciledAt          DateTime?
+  reconciledBy          String?
+  notes                 String?
+  createdAt             DateTime @default(now())
+}
+
+model PaymentRecord {
+  id                      String   @id @default(uuid())
+  receiptNumber           String   @unique
+  billId                  String?
+  bill                    Bill?    @relation(fields: [billId], references: [id], onDelete: SetNull)
+  patientId               String?
+  patient                 Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  amount                  Float
+  paymentMethod           String   // bank_transfer, pos, card, cash, insurance
+  paymentReference        String?  @unique
+  status                  String   @default("pending_verification") // pending_verification, verified, reconciled, rejected
+  reconciledTransactionId String?
+  receivedBy              String
+  notes                   String?
+  createdAt               DateTime @default(now())
+  refunds                 RefundRecord[]
+}
+
+model RefundRecord {
+  id                      String   @id @default(uuid())
+  refundNumber            String   @unique
+  paymentRecordId         String?
+  paymentRecord           PaymentRecord? @relation(fields: [paymentRecordId], references: [id], onDelete: SetNull)
+  billId                  String?
+  bill                    Bill?    @relation(fields: [billId], references: [id], onDelete: SetNull)
+  patientId               String?
+  patient                 Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  amount                  Float
+  reason                  String
+  refundMethod            String   // bank_transfer, card, cash
+  refundReference         String?  @unique
+  status                  String   @default("pending_approval") // pending_approval, approved, processed, reconciled, rejected
+  approvedBy              String?
+  reconciledTransactionId String?
+  createdAt               DateTime @default(now())
+}
+
+model InsuranceReimbursement {
+  id                      String   @id @default(uuid())
+  claimNumber             String   @unique
+  providerName            String
+  patientId               String?
+  patient                 Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  billedAmount            Float
+  approvedAmount          Float
+  paidAmount              Float    @default(0)
+  paymentReference        String?
+  status                  String   @default("submitted") // submitted, partial, settled, reconciled, disputed
+  reconciledTransactionId String?
+  createdAt               DateTime @default(now())
+  settledAt               DateTime?
+}
+
+model ProviderSettlement {
+  id                      String   @id @default(uuid())
+  settlementBatchId       String   @unique
+  provider                String
+  grossAmount             Float
+  feeAmount               Float    @default(0)
+  netAmount               Float
+  settlementDate          DateTime
+  transactionCount        Int      @default(1)
+  status                  String   @default("unmatched") // unmatched, reconciled, discrepancy
+  reconciledTransactionId String?
+  notes                   String?
+  createdAt               DateTime @default(now())
+}
+
+model DailyReconciliationReport {
+  id                          String   @id @default(uuid())
+  reportDate                  DateTime @unique
+  totalBankCredits            Float    @default(0)
+  totalBankDebits             Float    @default(0)
+  totalVerifiedPayments        Float    @default(0)
+  totalProcessedRefunds        Float    @default(0)
+  totalInsuranceSettled       Float    @default(0)
+  totalProviderSettled        Float    @default(0)
+  matchedTransactionsCount    Int      @default(0)
+  unmatchedTransactionsCount  Int      @default(0)
+  discrepancyCount            Int      @default(0)
+  status                      String   @default("draft") // draft, finalized, closed
+  generatedBy                 String
+  createdAt                   DateTime @default(now())
 }
 
 model TreatmentPlan {
