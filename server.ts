@@ -10,7 +10,7 @@ import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgresql://cbt_w7jg_user:1PMrhihntrU1zpbMOgYqQ3G7ymNbIxuT@dpg-damlbobm8hqs73djc8dg-a.oregon-postgres.render.com/cbt_w7jg';
+  process.env.DATABASE_URL = 'postgresql://myproject_db_ya6y_user:qTn2ZAtnPjDXMashqNCwCsaI5NiPMlMz@dpg-dbft40ks728c73c16cig-a.oregon-postgres.render.com/myproject_db_ya6y';
 } else if (!process.env.RENDER && process.env.DATABASE_URL.includes('@dpg-') && !process.env.DATABASE_URL.includes('.render.com')) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/@dpg-([a-z0-9-]+)\//, '@dpg-$1.oregon-postgres.render.com/');
 }
