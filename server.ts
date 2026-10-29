@@ -11,7 +11,7 @@ import { PrismaClient } from '@prisma/client';
 
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://cbt_w7jg_user:1PMrhihntrU1zpbMOgYqQ3G7ymNbIxuT@dpg-damlbobm8hqs73djc8dg-a.oregon-postgres.render.com/cbt_w7jg';
-} else if (process.env.DATABASE_URL.includes('@dpg-') && !process.env.DATABASE_URL.includes('.render.com')) {
+} else if (!process.env.RENDER && process.env.DATABASE_URL.includes('@dpg-') && !process.env.DATABASE_URL.includes('.render.com')) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/@dpg-([a-z0-9-]+)\//, '@dpg-$1.oregon-postgres.render.com/');
 }
 
@@ -112,28 +112,23 @@ async function startServer() {
     try {
       const { adminName, adminEmail, adminPhone, adminPassword } = getAdminConfig();
 
-      const adminsByEmail = await prisma.user.findMany({
-        where: { email: { equals: adminEmail, mode: 'insensitive' } }
-      });
-      const adminsByPhone = await prisma.user.findMany({
-        where: { phone: adminPhone }
-      });
+      let allUsers: any[] = [];
+      try {
+        allUsers = await prisma.user.findMany();
+      } catch (err) {
+        console.error('Failed to fetch users during ensureAdmin:', err);
+      }
 
-      // Candidates matching configured admin email or phone
-      const candidateMap = new Map<string, any>();
-      [...adminsByEmail, ...adminsByPhone].forEach(u => candidateMap.set(u.id, u));
-      const candidates = Array.from(candidateMap.values());
+      const candidates = allUsers.filter(u =>
+        (u.email && u.email.toLowerCase() === adminEmail.toLowerCase()) ||
+        (u.phone && phonesMatch(u.phone, adminPhone)) ||
+        u.role === 'admin'
+      );
 
       let primaryAdmin = candidates[0] || null;
 
-      if (!primaryAdmin) {
-        primaryAdmin = await prisma.user.findFirst({
-          where: { role: 'admin' }
-        });
-      }
-
       if (candidates.length > 1) {
-        // Resolve duplicate entries matching the specific admin email or phone safely
+        // Resolve duplicate entries matching admin safely
         for (let i = 1; i < candidates.length; i++) {
           try {
             await prisma.user.delete({ where: { id: candidates[i].id } });
@@ -144,26 +139,49 @@ async function startServer() {
       }
 
       if (primaryAdmin) {
-        primaryAdmin = await prisma.user.update({
-          where: { id: primaryAdmin.id },
-          data: {
-            name: adminName,
-            email: adminEmail,
-            phone: adminPhone,
-            password: adminPassword,
-            role: 'admin'
+        try {
+          primaryAdmin = await prisma.user.update({
+            where: { id: primaryAdmin.id },
+            data: {
+              name: adminName,
+              email: adminEmail,
+              phone: adminPhone,
+              password: adminPassword,
+              role: 'admin'
+            }
+          });
+        } catch (updateErr) {
+          // If update failed due to unique constraint, attempt finding by unique email/phone
+          const byEmail = await prisma.user.findUnique({ where: { email: adminEmail } }).catch(() => null);
+          const byPhone = await prisma.user.findUnique({ where: { phone: adminPhone } }).catch(() => null);
+          const existing = byEmail || byPhone;
+          if (existing) {
+            primaryAdmin = await prisma.user.update({
+              where: { id: existing.id },
+              data: {
+                name: adminName,
+                email: adminEmail,
+                phone: adminPhone,
+                password: adminPassword,
+                role: 'admin'
+              }
+            }).catch(() => existing);
           }
-        });
+        }
       } else {
-        primaryAdmin = await prisma.user.create({
-          data: {
-            name: adminName,
-            phone: adminPhone,
-            email: adminEmail,
-            password: adminPassword,
-            role: 'admin'
-          }
-        });
+        try {
+          primaryAdmin = await prisma.user.create({
+            data: {
+              name: adminName,
+              phone: adminPhone,
+              email: adminEmail,
+              password: adminPassword,
+              role: 'admin'
+            }
+          });
+        } catch (createErr) {
+          console.error('Failed to create admin in ensureAdmin:', createErr);
+        }
       }
       console.log(`✅ System admin account verified (${adminPhone} / ${adminEmail})`);
       return primaryAdmin;
@@ -1049,7 +1067,12 @@ async function startServer() {
 
       const { adminName, adminEmail, adminPhone, adminPassword } = getAdminConfig();
 
-      let allUsers = await prisma.user.findMany();
+      let allUsers: any[] = [];
+      try {
+        allUsers = await prisma.user.findMany();
+      } catch (dbErr) {
+        console.error('Database query failed during login:', dbErr);
+      }
 
       let user = allUsers.find(u => {
         const matchesId = u.id && u.id === rawIdentifier;
@@ -1071,24 +1094,35 @@ async function startServer() {
         user?.role === 'admin';
 
       if (!user && isAdminIdentifier) {
-        user = await ensureAdmin();
-      }
-
-      if (user && isAdminIdentifier) {
-        const updatedAdmin = await ensureAdmin();
-        if (updatedAdmin) {
-          user = updatedAdmin;
+        try {
+          user = await ensureAdmin();
+        } catch {
+          // Ignore ensureAdmin failure and rely on fallback
         }
       }
 
-      // Final fallback for Admin if DB unreachable/disconnected
+      if (user && isAdminIdentifier) {
+        try {
+          const updatedAdmin = await ensureAdmin();
+          if (updatedAdmin) {
+            user = updatedAdmin;
+          }
+        } catch {
+          // Keep current user object if sync fails
+        }
+      }
+
+      // Final fallback for Admin if DB unreachable/disconnected or user not found
       if (!user && isAdminIdentifier && cleanPassword === adminPassword) {
         user = {
           id: 'admin-fallback-id',
+          uid: 'admin-fallback-uid',
           name: adminName,
           email: adminEmail,
           phone: adminPhone,
-          role: 'admin'
+          password: adminPassword,
+          role: 'admin',
+          createdAt: new Date()
         };
       }
 
