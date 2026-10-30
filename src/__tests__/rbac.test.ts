@@ -5,7 +5,7 @@ type Role = 'admin' | 'doctor' | 'nurse' | 'record' | 'pharmacy' | 'pharmacy_adm
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
   admin: ['read:all', 'write:all', 'delete:all', 'update:role', 'manage:inventory'],
   doctor: ['read:patients', 'write:prescriptions', 'write:notes', 'write:physio', 'write:treatment', 'write:investigations'],
-  nurse: ['read:patients', 'write:vitals', 'update:workflow', 'write:notes', 'write:investigations'],
+  nurse: ['read:patients', 'write:vitals', 'update:workflow', 'write:notes', 'write:investigations', 'write:physio'],
   record: ['read:patients', 'register:patients', 'manage:appointments'],
   pharmacy: ['read:prescriptions', 'update:prescriptions', 'manage:inventory'],
   pharmacy_admin: ['read:prescriptions', 'update:prescriptions', 'manage:inventory'],
@@ -34,9 +34,10 @@ describe('Server & Application RBAC Authorization Suite', () => {
     expect(hasPermission('doctor', 'manage:inventory')).toBe(false);
   });
 
-  it('nurse can record vitals and update workflow, but cannot write prescriptions', () => {
+  it('nurse can record vitals, refer to physiotherapy, and update workflow, but cannot write prescriptions', () => {
     expect(hasPermission('nurse', 'write:vitals')).toBe(true);
     expect(hasPermission('nurse', 'update:workflow')).toBe(true);
+    expect(hasPermission('nurse', 'write:physio')).toBe(true);
     expect(hasPermission('nurse', 'write:prescriptions')).toBe(false);
   });
 

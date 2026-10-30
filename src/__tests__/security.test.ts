@@ -5,7 +5,7 @@ type Role = 'admin' | 'doctor' | 'nurse' | 'record' | 'pharmacy' | 'lab';
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
   admin: ['read:all', 'write:all', 'delete:all', 'update:role'],
   doctor: ['read:patients', 'write:prescriptions', 'write:notes', 'write:physio'],
-  nurse: ['read:patients', 'write:vitals', 'update:workflow'],
+  nurse: ['read:patients', 'write:vitals', 'update:workflow', 'write:physio'],
   record: ['read:patients', 'register:patients'],
   pharmacy: ['read:prescriptions', 'update:prescriptions', 'manage:inventory'],
   lab: ['read:investigations', 'update:investigations']
@@ -28,9 +28,10 @@ describe('Role-Based Access Control (RBAC) Guard Tests', () => {
     expect(hasPermission('doctor', 'update:role')).toBe(false);
   });
 
-  it('nurses should be allowed to write vitals and update workflow but not prescribe', () => {
+  it('nurses should be allowed to write vitals, physio referrals, and update workflow but not prescribe', () => {
     expect(hasPermission('nurse', 'write:vitals')).toBe(true);
     expect(hasPermission('nurse', 'update:workflow')).toBe(true);
+    expect(hasPermission('nurse', 'write:physio')).toBe(true);
     expect(hasPermission('nurse', 'write:prescriptions')).toBe(false);
   });
 });

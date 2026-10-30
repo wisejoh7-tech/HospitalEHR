@@ -94,7 +94,7 @@ export default function App() {
               <Route path="/patients/:id" element={<PatientDetails />} />
               <Route path="/investigations" element={<ProtectedRoute roles={['admin', 'doctor', 'nurse', 'lab', 'radiology']}><Investigations /></ProtectedRoute>} />
               <Route path="/pharmacy" element={<ProtectedRoute roles={['admin', 'doctor', 'pharmacy', 'pharmacy_admin']}><Pharmacy /></ProtectedRoute>} />
-              <Route path="/physiotherapy" element={<ProtectedRoute roles={['admin', 'doctor', 'physiotherapist', 'physio', 'nurse']}><Physiotherapy /></ProtectedRoute>} />
+              <Route path="/physiotherapy" element={<ProtectedRoute roles={['admin', 'doctor', 'physiotherapist', 'physio']}><Physiotherapy /></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute roles={['admin']}><StaffManagement /></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Billing /></ProtectedRoute>} />
               <Route path="/appointments" element={<ProtectedRoute roles={['admin', 'record', 'doctor']}><Appointments /></ProtectedRoute>} />

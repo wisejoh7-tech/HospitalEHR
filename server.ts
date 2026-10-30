@@ -1730,7 +1730,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/physiotherapy', requireRoles('admin', 'doctor'), async (req, res) => {
+  app.post('/api/patients/:id/physiotherapy', requireRoles('admin', 'doctor', 'nurse'), async (req, res) => {
     try {
       const { referredBy, clinicalIndication, bodyRegion, treatmentType, sessionsRequested, priority, notes } = req.body;
       const referral = await prisma.physiotherapyReferral.create({

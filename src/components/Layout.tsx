@@ -54,7 +54,7 @@ export default function Layout() {
     { icon: CalendarDays, label: 'Appointments', path: '/appointments', roles: ['admin', 'record', 'doctor'] },
     { icon: Microscope, label: 'Investigations', path: '/investigations', roles: ['admin', 'doctor', 'nurse', 'lab', 'radiology', 'scientist', 'radiographer'] },
     { icon: Pill, label: 'Pharmacy', path: '/pharmacy', roles: ['admin', 'doctor', 'pharmacy', 'pharmacy_admin'] },
-    { icon: Activity, label: 'Physiotherapy', path: '/physiotherapy', roles: ['admin', 'doctor', 'physiotherapist', 'physio', 'nurse'] },
+    { icon: Activity, label: 'Physiotherapy', path: '/physiotherapy', roles: ['admin', 'doctor', 'physiotherapist', 'physio'] },
     { icon: BookOpenText, label: 'Academic Rounds', path: '/academic-rounds', roles: ['admin', 'doctor'] },
     { icon: GraduationCap, label: 'Medical Education', path: '/medical-education', roles: ['admin', 'doctor'] },
     { icon: FlaskConical, label: 'Clinical Research', path: '/clinical-research', roles: ['admin', 'doctor'] },

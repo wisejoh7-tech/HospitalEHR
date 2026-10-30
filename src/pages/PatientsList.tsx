@@ -54,6 +54,7 @@ export default function PatientsList() {
   const navigate = useNavigate();
 
   const isAdmin = profile?.role === 'admin';
+  const isClinical = profile?.role === 'doctor' || profile?.role === 'nurse';
 
   useEffect(() => {
     // Set default tab based on role
@@ -389,7 +390,7 @@ export default function PatientsList() {
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Clinical Data</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Queue Position</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Queue Status</th>
-                {isAdmin && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Workflow Action</th>}
+                {(isAdmin || isClinical) && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Workflow Action</th>}
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
@@ -474,7 +475,7 @@ export default function PatientsList() {
                          return null;
                        })}
                     </td>
-                    {isAdmin && (
+                    {(isAdmin || isClinical) && (
                       <td className="px-6 py-4">
                          {nextStage && (
                            <button
