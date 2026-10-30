@@ -277,8 +277,9 @@ export default function PatientDetails() {
     e.preventDefault();
     if (!id || !profile) return;
     try {
+      const referredByTitle = isDoctor ? `Dr. ${profile.name}` : isNurse ? `Nurse ${profile.name}` : profile.name;
       const referral = await apiService.createPhysiotherapyReferral(id, {
-        referredBy: `Dr. ${profile.name}`,
+        referredBy: referredByTitle,
         ...physioForm,
         sessionsRequested: parseInt(physioForm.sessionsRequested) || 1
       });
@@ -775,6 +776,83 @@ export default function PatientDetails() {
             )}
           </AnimatePresence>
 
+          {/* Quick Action Bar to Send Patient Info to Department Pages */}
+          {(isClinical || isAdmin) && (
+            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Send size={16} className="text-blue-600" />
+                <span className="text-xs font-black text-gray-900 uppercase tracking-wider">Send Patient Info To:</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'physiotherapy', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('physiotherapy');
+                      setShowPhysioModal(true);
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Physiotherapy');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Activity size={14} /> Send to Physiotherapy
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'pharmacy', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('prescriptions');
+                      setShowRxModal(true);
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Pharmacy');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Pill size={14} /> Send to Pharmacy
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'laboratory', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('labs');
+                      setInvType('laboratory');
+                      setShowInvModal(true);
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Laboratory');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Activity size={14} /> Send to Lab
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'radiology', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('radiology');
+                      setInvType('radiology');
+                      setShowInvModal(true);
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Radiology');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <FileSearch size={14} /> Send to Radiology
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Interaction Area */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0">
             {/* Tabs */}
@@ -1030,7 +1108,7 @@ export default function PatientDetails() {
                           <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Physiotherapy Referrals</h3>
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Physical Rehabilitation & Therapy Orders</p>
                        </div>
-                       {isDoctor && (
+                       {isClinical && (
                          <button
                            onClick={() => setShowPhysioModal(true)}
                            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
