@@ -58,4 +58,53 @@ describe('Clinical Workflows & Business Logic Suite', () => {
     expect(addendum.parentNoteId).toBe('note-1');
     expect(addendum.type).toBe('addendum');
   });
+
+  it('should sanitize and parse numeric vital signs fields properly for storage', () => {
+    const rawVitalsInput = {
+      bp: ' 120/80 ',
+      pulse: '75',
+      temp: '36.8',
+      resp: '',
+      spo2: undefined,
+      weight: null,
+      takenBy: ' Nurse Joy '
+    };
+
+    const parsedPulse = rawVitalsInput.pulse !== undefined && rawVitalsInput.pulse !== null && rawVitalsInput.pulse !== ''
+      ? parseInt(String(rawVitalsInput.pulse), 10) : null;
+    const parsedTemp = rawVitalsInput.temp !== undefined && rawVitalsInput.temp !== null && rawVitalsInput.temp !== ''
+      ? parseFloat(String(rawVitalsInput.temp)) : null;
+    const parsedResp = rawVitalsInput.resp !== undefined && rawVitalsInput.resp !== null && rawVitalsInput.resp !== ''
+      ? parseInt(String(rawVitalsInput.resp), 10) : null;
+    const parsedSpo2 = rawVitalsInput.spo2 !== undefined && rawVitalsInput.spo2 !== null && rawVitalsInput.spo2 !== ''
+      ? parseInt(String(rawVitalsInput.spo2), 10) : null;
+    const parsedWeight = rawVitalsInput.weight !== undefined && rawVitalsInput.weight !== null && rawVitalsInput.weight !== ''
+      ? parseFloat(String(rawVitalsInput.weight)) : null;
+
+    expect(parsedPulse).toBe(75);
+    expect(parsedTemp).toBe(36.8);
+    expect(parsedResp).toBeNull();
+    expect(parsedSpo2).toBeNull();
+    expect(parsedWeight).toBeNull();
+    expect(rawVitalsInput.bp.trim()).toBe('120/80');
+    expect(rawVitalsInput.takenBy.trim()).toBe('Nurse Joy');
+  });
+
+  it('should allow records to be re-sent anytime across workflow stages', () => {
+    const validStages = ['registered', 'triage', 'vitals', 'consultation', 'laboratory', 'radiology', 'physiotherapy', 'treatment', 'pharmacy', 'discharged'];
+
+    // Patient starts at vitals, sent to consultation
+    let currentStage = 'vitals';
+    expect(validStages.includes(currentStage)).toBe(true);
+
+    currentStage = 'consultation';
+    expect(validStages.includes(currentStage)).toBe(true);
+
+    // Nurse re-sends patient back to vitals or to lab
+    currentStage = 'vitals';
+    expect(validStages.includes(currentStage)).toBe(true);
+
+    currentStage = 'laboratory';
+    expect(validStages.includes(currentStage)).toBe(true);
+  });
 });

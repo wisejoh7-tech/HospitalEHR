@@ -53,6 +53,16 @@ export default function PatientsList() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
 
+  // Admit / Discharge modal states for PatientsList
+  const [wards, setWards] = useState<any[]>([]);
+  const [selectedPatientForAdmit, setSelectedPatientForAdmit] = useState<Patient | null>(null);
+  const [selectedPatientForDischarge, setSelectedPatientForDischarge] = useState<Patient | null>(null);
+  const [selectedWard, setSelectedWard] = useState<string>('');
+  const [selectedBed, setSelectedBed] = useState<string>('');
+  const [dischargeReason, setDischargeReason] = useState<string>('');
+  const [isAdmitting, setIsAdmitting] = useState(false);
+  const [isDischarging, setIsDischarging] = useState(false);
+
   const isAdmin = profile?.role === 'admin';
   const isClinical = profile?.role === 'doctor' || profile?.role === 'nurse';
 
@@ -148,8 +158,12 @@ export default function PatientsList() {
 
   const fetchPatients = async () => {
     try {
-      const list = await apiService.getPatients();
+      const [list, wardsList] = await Promise.all([
+        apiService.getPatients(),
+        apiService.getWards().catch(() => [])
+      ]);
       setPatients(list);
+      setWards(wardsList);
     } catch (err) {
       console.error(err);
     }
@@ -158,6 +172,39 @@ export default function PatientsList() {
   useEffect(() => {
     fetchPatients();
   }, []);
+
+  const handleConfirmAdmit = async () => {
+    if (!selectedPatientForAdmit || !selectedWard || !selectedBed) return;
+    setIsAdmitting(true);
+    try {
+      await apiService.admitPatient(selectedPatientForAdmit.id, selectedWard, selectedBed);
+      alert(`Patient ${selectedPatientForAdmit.name} admitted successfully!`);
+      setSelectedPatientForAdmit(null);
+      setSelectedWard('');
+      setSelectedBed('');
+      fetchPatients();
+    } catch (err: any) {
+      alert(err?.message || "Failed to admit patient");
+    } finally {
+      setIsAdmitting(false);
+    }
+  };
+
+  const handleConfirmDischarge = async () => {
+    if (!selectedPatientForDischarge) return;
+    setIsDischarging(true);
+    try {
+      await apiService.dischargePatient(selectedPatientForDischarge.id, dischargeReason);
+      alert(`Patient ${selectedPatientForDischarge.name} discharged successfully!`);
+      setSelectedPatientForDischarge(null);
+      setDischargeReason('');
+      fetchPatients();
+    } catch (err: any) {
+      alert(err?.message || "Failed to discharge patient");
+    } finally {
+      setIsDischarging(false);
+    }
+  };
 
   const moveWorkflow = async (e: React.MouseEvent, id: string, nextStatus: WorkflowStatus) => {
     e.stopPropagation();
@@ -476,21 +523,69 @@ export default function PatientsList() {
                        })}
                     </td>
                     {(isAdmin || isClinical) && (
-                      <td className="px-6 py-4">
-                         {nextStage && (
-                           <button
-                             onClick={(e) => moveWorkflow(e, patient.id, nextStage)}
-                             className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                         <div className="flex items-center gap-2">
+                           {nextStage && (
+                             <button
+                               onClick={(e) => moveWorkflow(e, patient.id, nextStage)}
+                               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-600 hover:text-white transition-all shadow-sm shrink-0"
+                             >
+                                Send to {nextStepLabel}
+                                <ArrowRightCircle size={12} />
+                             </button>
+                           )}
+                           <select
+                             value={patient.workflowStatus}
+                             onChange={async (e) => {
+                               const target = e.target.value as any;
+                               try {
+                                 await apiService.updatePatientWorkflowStatus(patient.id, target, profile?.role);
+                                 fetchPatients();
+                               } catch (err: any) {
+                                 alert(err?.message || "Failed to route patient");
+                               }
+                             }}
+                             className="text-[9px] font-black uppercase bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none cursor-pointer hover:border-blue-400"
+                             title="Route or re-send to any department anytime"
                            >
-                              Send to {nextStepLabel}
-                              <ArrowRightCircle size={14} />
-                           </button>
-                         )}
-                         {!nextStage && patient.workflowStatus === 'discharged' && (
-                           <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
-                              Care Completed
-                           </span>
-                         )}
+                             <option value="registered">Reception</option>
+                             <option value="triage">Triage</option>
+                             <option value="vitals">Nursing (Vitals)</option>
+                             <option value="consultation">Doctor</option>
+                             <option value="laboratory">Laboratory</option>
+                             <option value="radiology">Radiology</option>
+                             <option value="physiotherapy">Physiotherapy</option>
+                             <option value="treatment">Nursing (Care)</option>
+                             <option value="pharmacy">Pharmacy</option>
+                             <option value="discharged">Completed</option>
+                           </select>
+
+                           {/* Admit or Discharge Button */}
+                           {patient.status === 'inpatient' ? (
+                             <button
+                               onClick={() => {
+                                 setSelectedPatientForDischarge(patient);
+                                 setDischargeReason('');
+                               }}
+                               className="px-2.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-red-100 shrink-0"
+                               title="Discharge Inpatient"
+                             >
+                               Discharge
+                             </button>
+                           ) : (
+                             <button
+                               onClick={() => {
+                                 setSelectedPatientForAdmit(patient);
+                                 setSelectedWard(wards[0]?.id || '');
+                                 setSelectedBed('');
+                               }}
+                               className="px-2.5 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-blue-100 shrink-0"
+                               title="Admit to Ward"
+                             >
+                               Admit
+                             </button>
+                           )}
+                         </div>
                       </td>
                     )}
                     <td className="px-6 py-4 text-right">
@@ -523,6 +618,152 @@ export default function PatientsList() {
           )}
         </div>
       </div>
+
+      {/* Direct Admission Modal */}
+      <AnimatePresence>
+        {selectedPatientForAdmit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPatientForAdmit(null)}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-6 sm:p-10 overflow-hidden"
+            >
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3.5 bg-blue-50 text-blue-600 rounded-2xl">
+                  <UserPlus size={28} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-gray-900">Patient Admission</h3>
+                  <p className="text-xs font-bold text-gray-400">Admit {selectedPatientForAdmit.name} ({selectedPatientForAdmit.id})</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Select Ward</label>
+                  <select
+                    value={selectedWard}
+                    onChange={(e) => {
+                      setSelectedWard(e.target.value);
+                      setSelectedBed('');
+                    }}
+                    className="w-full p-3.5 bg-gray-50 rounded-2xl border-none font-bold text-xs outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Choose a ward...</option>
+                    {wards.map((w: any) => (
+                      <option key={w.id} value={w.id}>{w.name} ({w.type})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedWard && (
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Available Bed</label>
+                    <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
+                      {wards.find((w: any) => w.id === selectedWard)?.beds?.filter((b: any) => b.status === 'vacant').map((b: any) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => setSelectedBed(b.id)}
+                          className={cn(
+                            "p-2.5 rounded-xl text-xs font-black transition-all",
+                            selectedBed === b.id ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          )}
+                        >
+                          Bed #{b.id.slice(-4)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPatientForAdmit(null)}
+                    className="flex-1 py-3 text-xs font-black uppercase text-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!selectedBed || isAdmitting}
+                    onClick={handleConfirmAdmit}
+                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-100 disabled:opacity-50"
+                  >
+                    {isAdmitting ? 'Admitting...' : 'Confirm Admission'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Direct Discharge Confirmation Modal */}
+      <AnimatePresence>
+        {selectedPatientForDischarge && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPatientForDischarge(null)}
+              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6 sm:p-10 overflow-hidden text-center"
+            >
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-1">Confirm Patient Discharge</h3>
+              <p className="text-xs font-medium text-gray-500 mb-4">
+                Discharge inpatient {selectedPatientForDischarge.name}? This frees their assigned bed.
+              </p>
+
+              <div className="mb-4 text-left">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Discharge Reason</label>
+                <textarea
+                  value={dischargeReason}
+                  onChange={(e) => setDischargeReason(e.target.value)}
+                  placeholder="e.g. Treatment completed, Referred, Fit for discharge..."
+                  className="w-full p-3 bg-gray-50 border-none rounded-xl text-xs font-medium outline-none h-20 focus:bg-white focus:ring-2 focus:ring-red-100 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPatientForDischarge(null)}
+                  className="flex-1 py-3 text-xs font-black uppercase text-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDischarging}
+                  onClick={handleConfirmDischarge}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-red-100 disabled:opacity-50"
+                >
+                  {isDischarging ? 'Discharging...' : 'Confirm Discharge'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Biometric Identification Modal (Stayed Same) */}
       <AnimatePresence>
