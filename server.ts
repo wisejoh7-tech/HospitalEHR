@@ -1519,41 +1519,62 @@ async function startServer() {
     }
   });
 
-  app.post('/api/patients/:id/vitals', requireRoles('admin', 'nurse', 'doctor'), async (req, res) => {
+  app.post('/api/patients/:id/vitals', requireRoles('admin', 'nurse', 'doctor', 'record'), async (req, res) => {
     try {
+      const { bp, pulse, temp, resp, spo2, weight, takenBy } = req.body;
+
+      // Ensure numeric fields are correctly parsed or null to prevent Prisma crashes
+      const parsedPulse = pulse !== undefined && pulse !== null && pulse !== '' ? parseInt(String(pulse), 10) : null;
+      const parsedTemp = temp !== undefined && temp !== null && temp !== '' ? parseFloat(String(temp)) : null;
+      const parsedResp = resp !== undefined && resp !== null && resp !== '' ? parseInt(String(resp), 10) : null;
+      const parsedSpo2 = spo2 !== undefined && spo2 !== null && spo2 !== '' ? parseInt(String(spo2), 10) : null;
+      const parsedWeight = weight !== undefined && weight !== null && weight !== '' ? parseFloat(String(weight)) : null;
+
       const vitals = await prisma.vitalSign.create({
         data: {
-          ...req.body,
-          patientId: req.params.id
+          patientId: req.params.id,
+          bp: bp ? String(bp).trim() : null,
+          pulse: isNaN(Number(parsedPulse)) ? null : parsedPulse,
+          temp: isNaN(Number(parsedTemp)) ? null : parsedTemp,
+          resp: isNaN(Number(parsedResp)) ? null : parsedResp,
+          spo2: isNaN(Number(parsedSpo2)) ? null : parsedSpo2,
+          weight: isNaN(Number(parsedWeight)) ? null : parsedWeight,
+          takenBy: (takenBy ? String(takenBy).trim() : '') || 'Nurse'
         }
       });
-      await logAction(req.body.takenBy || 'unknown', req.body.takenBy || 'Nurse', `Recorded vitals for patient`, req.params.id, 'VitalSign');
+
+      await logAction(takenBy || 'Nurse', takenBy || 'Nurse', `Recorded vitals for patient`, req.params.id, 'VitalSign');
       broadcastEvent('vitals_recorded', { patientId: req.params.id, vitals });
       
-      // Auto-bill nurse fee
-      const pricing = await prisma.servicePricing.findUnique({ where: { name: 'nurse_fee' } });
-      const bill = await prisma.bill.findFirst({
-        where: { patientId: req.params.id, status: 'pending' },
-        orderBy: { createdAt: 'desc' }
-      });
-      if (bill && pricing) {
-        await prisma.billItem.create({
-          data: {
-            billId: bill.id,
-            description: `Nursing Service Fee`,
-            amount: pricing.price,
-            type: 'ward'
-          }
+      // Auto-bill nurse fee safely
+      try {
+        const pricing = await prisma.servicePricing.findUnique({ where: { name: 'nurse_fee' } });
+        const bill = await prisma.bill.findFirst({
+          where: { patientId: req.params.id, status: 'pending' },
+          orderBy: { createdAt: 'desc' }
         });
-        await prisma.bill.update({
-          where: { id: bill.id },
-          data: { totalAmount: { increment: pricing.price } }
-        });
+        if (bill && pricing) {
+          await prisma.billItem.create({
+            data: {
+              billId: bill.id,
+              description: `Nursing Service Fee`,
+              amount: pricing.price,
+              type: 'ward'
+            }
+          });
+          await prisma.bill.update({
+            where: { id: bill.id },
+            data: { totalAmount: { increment: pricing.price } }
+          });
+        }
+      } catch (billingErr) {
+        console.error('Auto-bill nurse fee warning:', billingErr);
       }
       
       res.status(201).json(vitals);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to record vitals' });
+    } catch (error: any) {
+      console.error('Failed to record vitals error:', error);
+      res.status(500).json({ error: error?.message || 'Failed to record vitals' });
     }
   });
 

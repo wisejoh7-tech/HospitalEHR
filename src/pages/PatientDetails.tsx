@@ -347,20 +347,21 @@ export default function PatientDetails() {
     if (!id || !profile) return;
     try {
       const newVitals = await apiService.addVitals(id, {
-        bp: vitalsForm.bp,
-        pulse: parseInt(vitalsForm.pulse) || undefined,
-        temp: parseFloat(vitalsForm.temp) || undefined,
-        resp: parseInt(vitalsForm.resp) || undefined,
-        spo2: parseInt(vitalsForm.spo2) || undefined,
-        weight: parseFloat(vitalsForm.weight) || undefined,
-        takenBy: profile.name
+        bp: vitalsForm.bp ? vitalsForm.bp.trim() : undefined,
+        pulse: vitalsForm.pulse ? parseInt(vitalsForm.pulse, 10) : undefined,
+        temp: vitalsForm.temp ? parseFloat(vitalsForm.temp) : undefined,
+        resp: vitalsForm.resp ? parseInt(vitalsForm.resp, 10) : undefined,
+        spo2: vitalsForm.spo2 ? parseInt(vitalsForm.spo2, 10) : undefined,
+        weight: vitalsForm.weight ? parseFloat(vitalsForm.weight) : undefined,
+        takenBy: profile.name || 'Nurse'
       });
       setVitals(prev => [newVitals, ...prev]);
       setShowVitalsModal(false);
       setVitalsForm({ bp: '', pulse: '', temp: '', resp: '', spo2: '', weight: '' });
+      alert("Vital signs saved successfully!");
 
-      // Auto-move to consultation after vitals
-      if (patient?.workflowStatus === 'vitals' || isNurse || isAdmin) {
+      // Auto-move to consultation after vitals if patient is in vitals workflow
+      if (patient?.workflowStatus === 'vitals') {
         try {
           const updated = await apiService.updatePatientWorkflowStatus(id, 'consultation', profile?.role);
           setPatient(updated);
@@ -368,8 +369,9 @@ export default function PatientDetails() {
           console.error(e);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(err?.message || "Failed to save vital signs. Please try again.");
     }
   };
 
@@ -559,26 +561,24 @@ export default function PatientDetails() {
             </div>
           )}
 
-          {isClinical && (
+          {(isClinical || isAdmin) && (
             patient.status === 'inpatient' ? (
               <button 
                 onClick={() => setShowDischargeModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-red-600 text-white shadow-lg shadow-red-100 hover:scale-105 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-red-600 text-white shadow-lg shadow-red-100 hover:scale-105 transition-all cursor-pointer"
               >
                 <LogOut size={16} /> Discharge Patient
               </button>
             ) : (
-              !['registered', 'vitals'].includes(patient.workflowStatus) && (
-                <button 
-                  onClick={() => {
-                    fetchWards();
-                    setShowAdmitModal(true);
-                  }}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-blue-600 text-white shadow-lg shadow-blue-100 hover:scale-105 transition-all"
-                >
-                  <BedDouble size={16} /> Admit Patient
-                </button>
-              )
+              <button
+                onClick={() => {
+                  fetchWards();
+                  setShowAdmitModal(true);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-blue-600 text-white shadow-lg shadow-blue-100 hover:scale-105 transition-all cursor-pointer"
+              >
+                <BedDouble size={16} /> Admit Patient
+              </button>
             )
           )}
 
@@ -781,9 +781,57 @@ export default function PatientDetails() {
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Send size={16} className="text-blue-600" />
-                <span className="text-xs font-black text-gray-900 uppercase tracking-wider">Send Patient Info To:</span>
+                <span className="text-xs font-black text-gray-900 uppercase tracking-wider">Send / Re-send Patient Info To:</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'vitals', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('vitals');
+                      alert('Patient record sent/re-sent to Nurses for Vitals!');
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Nurses');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Activity size={14} /> Send to Nurses (Vitals)
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'consultation', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('notes');
+                      alert('Patient record sent/re-sent to Doctor for Consultation!');
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Doctor');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Stethoscope size={14} /> Send to Doctor
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment', profile?.role);
+                      setPatient(updated);
+                      setActiveTab('treatment');
+                      alert('Patient record sent/re-sent to Nursing Treatment!');
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to send patient info to Treatment');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Activity size={14} /> Send to Treatment
+                </button>
+
                 <button
                   onClick={async () => {
                     try {
@@ -811,7 +859,7 @@ export default function PatientDetails() {
                       alert(e?.message || 'Failed to send patient info to Pharmacy');
                     }
                   }}
-                  className="px-3.5 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  className="px-3.5 py-2 bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Pill size={14} /> Send to Pharmacy
                 </button>

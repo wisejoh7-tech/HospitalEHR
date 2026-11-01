@@ -5,8 +5,8 @@ type Role = 'admin' | 'doctor' | 'nurse' | 'record' | 'pharmacy' | 'pharmacy_adm
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
   admin: ['read:all', 'write:all', 'delete:all', 'update:role', 'manage:inventory'],
   doctor: ['read:patients', 'write:prescriptions', 'write:notes', 'write:physio', 'write:treatment', 'write:investigations'],
-  nurse: ['read:patients', 'write:vitals', 'update:workflow', 'write:notes', 'write:investigations', 'write:physio'],
-  record: ['read:patients', 'register:patients', 'manage:appointments'],
+  nurse: ['read:patients', 'write:vitals', 'update:workflow', 'write:notes', 'write:investigations', 'write:physio', 'admit:patient', 'discharge:patient'],
+  record: ['read:patients', 'register:patients', 'manage:appointments', 'write:vitals'],
   pharmacy: ['read:prescriptions', 'update:prescriptions', 'manage:inventory'],
   pharmacy_admin: ['read:prescriptions', 'update:prescriptions', 'manage:inventory'],
   lab: ['read:investigations', 'update:investigations'],
