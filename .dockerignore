@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-electron
+dev.db
+*.log
+.git
+.env
+.env.local
+android
+electron
