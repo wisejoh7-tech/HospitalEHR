@@ -6,9 +6,28 @@
 
 This repository contains the complete frontend and backend code for the Hospital Management System.
 
+## Architecture & Tech Stack
+
+```
+Frontend: AWS S3 + CloudFront (React, Vite, TypeScript)
+    │
+    ▼ (HTTPS API requests)
+Backend: AWS App Runner / ECS (Node.js/Express with Prisma ORM)
+    │
+    ▼
+Database: Amazon RDS (PostgreSQL)
+```
+
+- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS
+- **Backend:** Node.js, Express, Prisma ORM, Server-Sent Events (SSE)
+- **Database:** PostgreSQL (Amazon RDS / Render / Docker) with Prisma ORM
+- **Deployment Platform:** AWS S3, CloudFront, AWS App Runner, Amazon ECS, and Docker
+
+---
+
 ## Database Setup (PostgreSQL)
 
-The application uses **PostgreSQL** as its database engine via Prisma ORM.
+The application uses **PostgreSQL** as its production database engine via Prisma ORM (with local SQLite option for offline development).
 
 - Database schema: `prisma/schema.prisma`
 
@@ -23,14 +42,14 @@ npx prisma db push
 ## Environment Variables
 
 ### 1. Backend Web Service (`.env`)
-For deploying the backend service (e.g. Node.js Express server on Render, Railway, AWS EC2, or Docker):
+For deploying the backend service (e.g. AWS App Runner, Amazon ECS, Docker, or Render):
 
 ```env
-# Connection string for PostgreSQL database
-DATABASE_URL="postgresql://postgres:password@localhost:5432/hospital_db?schema=public"
+# Connection string for Amazon RDS PostgreSQL database
+DATABASE_URL="postgresql://dbadmin:your_password@hospital-db.xxxxxx.us-east-1.rds.amazonaws.com:5432/hospital_db?sslmode=require"
 
-# Allowed frontend origin for CORS
-ALLOWED_ORIGINS="https://cbt-vivi.onrender.com"
+# Allowed frontend origin(s) for CORS (CloudFront domain and custom domains)
+ALLOWED_ORIGINS="https://d111111abcdef8.cloudfront.net,https://app.yourhospital.com"
 
 # Server port
 PORT=3000
@@ -42,9 +61,9 @@ NODE_ENV="production"
 GEMINI_API_KEY="your_gemini_api_key_here"
 
 # The publicly accessible URL where the backend web service is running
-APP_URL="https://your-backend-service.onrender.com"
+APP_URL="https://your-backend-service.us-east-1.awsapprunner.com"
 
-# Admin credentials configured directly on Render backend service
+# Admin credentials
 ADMIN_NAME="System Admin"
 ADMIN_EMAIL="admin@hospital.com"
 ADMIN_PHONE="08000000000"
@@ -52,12 +71,12 @@ ADMIN_PASSWORD="your_secure_admin_password"
 ```
 
 ### 2. Frontend Static Host (`.env.production` / Environment Settings)
-When building and hosting the static frontend (e.g. Vercel, Netlify, Cloudflare Pages, AWS S3 / CloudFront):
+When building and hosting the static frontend on **AWS S3 + CloudFront**:
 
 ```env
 # Backend API URL that the frontend communicates with (both VITE_API_URL and VITE_API_BASE_URL are supported)
-VITE_API_URL="https://cbt-9v2x.onrender.com"
-VITE_API_BASE_URL="https://cbt-9v2x.onrender.com"
+VITE_API_URL="https://your-backend-service.us-east-1.awsapprunner.com"
+VITE_API_BASE_URL="https://your-backend-service.us-east-1.awsapprunner.com"
 ```
 
 ---
@@ -70,7 +89,7 @@ VITE_API_BASE_URL="https://cbt-9v2x.onrender.com"
    ```bash
    npm install
    ```
-2. Initialize PostgreSQL database:
+2. Initialize PostgreSQL database (or use local SQLite via `npm run db:push:sqlite`):
    ```bash
    npx prisma db push
    ```
@@ -83,6 +102,39 @@ VITE_API_BASE_URL="https://cbt-9v2x.onrender.com"
    ```bash
    npm run dev
    ```
+
+---
+
+## Docker & Container Deployment
+
+Build and run the containerized backend locally or for AWS App Runner / Amazon ECS:
+
+```bash
+# Build Docker image
+docker build -t hospital-backend .
+
+# Run container locally with PostgreSQL connection
+docker run -p 3000:3000 \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/dbname" \
+  -e ALLOWED_ORIGINS="http://localhost:3000" \
+  hospital-backend
+```
+
+---
+
+## AWS Production Deployment
+
+For detailed, step-by-step instructions on deploying the full AWS stack, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md):
+
+1. **Frontend (AWS S3 + CloudFront):**
+   - Build static assets with `npm run build`.
+   - Upload `dist/` to an Amazon S3 bucket.
+   - Configure Amazon CloudFront CDN with SSL, custom error page routing (`403/404` -> `/index.html`), and caching rules.
+2. **Backend (AWS App Runner / ECS):**
+   - Deploy using `apprunner.yaml` or Amazon ECS task definition (`aws-task-definition.json`).
+   - Configure VPC connector to communicate with private RDS instances.
+3. **Database (Amazon RDS):**
+   - Managed PostgreSQL instance with automated backups and security groups restricted to the backend service.
 
 ---
 
@@ -101,7 +153,6 @@ npm run electron:dev
 ```bash
 npm run electron:build
 ```
-Executables/installers will be packaged into the `dist-electron/` folder.
 
 ---
 
@@ -123,38 +174,6 @@ npm run cap:sync
   ```
 - **Xcode (macOS only):**
   ```bash
-  npm run cap:add:ios # if ios project is not yet added
+  npm run cap:add:ios
   npm run cap:open:ios
   ```
-
----
-
-## Production Deployment
-
-### Option A: Monolithic Web Service (Backend serving Static Frontend)
-1. Build static assets:
-   ```bash
-   npm run build
-   ```
-2. Set environment variables on your web host:
-   - `NODE_ENV=production`
-   - `DATABASE_URL=postgresql://postgres:password@localhost:5432/hospital_db?schema=public`
-   - `PORT=3000`
-   - `GEMINI_API_KEY=...`
-3. Start the production server:
-   ```bash
-   npx tsx server.ts
-   ```
-
-### Option B: Decoupled Deployments (Static Frontend + Backend Web Service)
-
-1. **Deploy Backend Web Service:**
-   - Host as Node.js web service.
-   - Configure env: `DATABASE_URL="postgresql://postgres:password@localhost:5432/hospital_db?schema=public"`, `NODE_ENV="production"`, `PORT=3000`, `GEMINI_API_KEY=...`
-   - Start script: `npx tsx server.ts`
-
-2. **Deploy Frontend Static Site:**
-   - Host dist output on static hosts (Vercel, Netlify, Cloudflare Pages).
-   - Configure env during build: `VITE_API_BASE_URL="https://your-backend-service.onrender.com"`
-   - Build command: `npm run build`
-   - Publish directory: `dist`
