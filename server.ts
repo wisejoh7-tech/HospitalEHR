@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import multer from 'multer';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
 
 if (!process.env.DATABASE_URL) {
@@ -269,6 +270,31 @@ async function startServer() {
       console.error('Failed to ensure pricing:', err);
     }
   };
+
+  // Automatically synchronize Prisma database schema if tables are missing
+  const ensureDatabaseSchema = async () => {
+    try {
+      const isSqlite = isSQLiteDatabase();
+      const schemaPath = isSqlite ? 'prisma/schema.sqlite.prisma' : 'prisma/schema.prisma';
+      console.log(`⏳ Synchronizing database schema using ${schemaPath}...`);
+      execSync(`npx prisma db push --schema=${schemaPath} --skip-generate`, {
+        stdio: 'inherit',
+        env: process.env,
+      });
+      console.log('✅ Database schema in sync.');
+    } catch (dbSyncErr) {
+      console.error('⚠️ Database schema push warning:', dbSyncErr);
+    }
+  };
+
+  try {
+    await prisma.user.count();
+  } catch (err: any) {
+    if (err?.message?.includes('does not exist') || err?.code === 'P2021') {
+      console.log('⚠️ Database tables missing. Running automated schema push...');
+      await ensureDatabaseSchema();
+    }
+  }
 
   await Promise.all([ensureAdmin(), ensureWards(), ensurePricing()]);
 
