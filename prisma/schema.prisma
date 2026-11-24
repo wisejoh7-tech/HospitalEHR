@@ -194,8 +194,21 @@ model Prescription {
   dosage     String
   frequency  String
   duration   String
-  status     String   // active, discontinued, completed
+  status     String   // pending, dispensing, dispensed, active (legacy), discontinued, completed
   createdAt  DateTime @default(now())
+  administrations MedicationAdministration[]
+}
+
+model MedicationAdministration {
+  id             String       @id @default(uuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  dose           String
+  outcome        String       // administered, held, refused
+  notes          String?
+  administeredAt DateTime     @default(now())
+  staffId        String
+  staffName      String
 }
 
 model AuditLog {

@@ -25,11 +25,13 @@ export default function Pharmacy() {
   const isPharmacyAdmin = profile?.role === 'pharmacy_admin' || profile?.role === 'admin';
   const isPharmacyStaff = profile?.role === 'pharmacy';
 
-  const [activeView, setActiveView] = useState<'rx' | 'inventory'>(isPharmacyStaff ? 'rx' : 'inventory');
+  const [activeView, setActiveView] = useState<'rx' | 'inventory'>('rx');
   const [prescriptions, setPrescriptions] = useState<(Prescription & { patient: Patient })[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('active');
+  const [filterStatus, setFilterStatus] = useState<string>('queue');
+  const [orderError, setOrderError] = useState('');
+  const [updatingRxId, setUpdatingRxId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -48,7 +50,7 @@ export default function Pharmacy() {
     setLoading(true);
     try {
       if (activeView === 'rx') {
-        const data = await apiService.getPrescriptions({ status: filterStatus !== 'all' ? filterStatus : undefined });
+        const data = await apiService.getPrescriptions();
         setPrescriptions(data);
       } else {
         const data = await apiService.getInventory();
@@ -56,14 +58,15 @@ export default function Pharmacy() {
       }
       setLoading(false);
     } catch (err) {
-      console.error(err);
+      if (activeView === 'rx') setOrderError(err instanceof Error ? err.message : 'Failed to fetch prescriptions');
+      else console.error(err);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
-  }, [filterStatus, activeView]);
+  }, [activeView]);
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,11 +131,15 @@ export default function Pharmacy() {
   };
 
   const handleStatusUpdate = async (rxId: string, status: string) => {
+    setOrderError('');
+    setUpdatingRxId(rxId);
     try {
-      await apiService.updatePrescriptionStatus(rxId, status);
-      setPrescriptions(prev => prev.map(rx => rx.id === rxId ? { ...rx, status: status as any } : rx));
+      const updated = await apiService.updatePrescriptionStatus(rxId, status);
+      setPrescriptions(prev => prev.map(rx => rx.id === rxId ? { ...rx, ...updated } : rx));
     } catch (err) {
-      console.error(err);
+      setOrderError(err instanceof Error ? err.message : 'Failed to update prescription');
+    } finally {
+      setUpdatingRxId(null);
     }
   };
 
@@ -144,16 +151,15 @@ export default function Pharmacy() {
     const matchesDate = (!startDate || new Date(rx.createdAt) >= new Date(startDate)) &&
                        (!endDate || new Date(rx.createdAt) <= new Date(endDate + 'T23:59:59'));
 
-    const matchesPharmacyWorkflow = isAdmin ? true : rx.patient?.workflowStatus === 'pharmacy';
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'queue' ? ['pending', 'active', 'dispensing'].includes(rx.status) : rx.status === filterStatus);
 
-    return matchesSearch && matchesDate && matchesPharmacyWorkflow;
+    return matchesSearch && matchesDate && matchesStatus;
   });
 
-  const todayStr = new Date().toISOString().split('T')[0];
   const stats = {
-    active: prescriptions.filter(rx => rx.status === 'active').length,
-    dispensedToday: prescriptions.filter(rx => (rx.status === 'dispensed' || rx.status === 'completed') && rx.createdAt?.toString().startsWith(todayStr)).length || prescriptions.filter(rx => rx.status === 'dispensed').length,
-    pending: prescriptions.filter(rx => rx.status === 'active').length
+    active: prescriptions.filter(rx => ['pending', 'active', 'dispensing'].includes(rx.status)).length,
+    dispensed: prescriptions.filter(rx => rx.status === 'dispensed' || rx.status === 'completed').length
   };
 
   return (
@@ -200,12 +206,12 @@ export default function Pharmacy() {
         </div>
         
         <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          {['prescriptions', 'inventory'].map((view) => {
+          {(['rx', 'inventory'] as const).map((view) => {
             if (view === 'inventory' && isPharmacyStaff) return null;
             return (
               <button
                 key={view}
-                onClick={() => setActiveView(view as any)}
+                onClick={() => setActiveView(view)}
                 className={cn(
                   "px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
                   activeView === view 
@@ -213,7 +219,7 @@ export default function Pharmacy() {
                     : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {view}
+                {view === 'rx' ? 'prescriptions' : 'inventory'}
               </button>
             );
           })}
@@ -222,7 +228,7 @@ export default function Pharmacy() {
 
       {activeView === 'rx' && (
         <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto w-fit">
-          {['all', 'active', 'dispensed', 'completed', 'discontinued'].map((status) => (
+          {['queue', 'all', 'pending', 'active', 'dispensing', 'dispensed', 'completed', 'discontinued'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -312,9 +318,9 @@ export default function Pharmacy() {
             </div>
           </div>
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Dispensed Today</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Dispensed Orders</p>
             <div className="flex items-end gap-2">
-              <h3 className="text-3xl font-black text-gray-900">{stats.dispensedToday}</h3>
+              <h3 className="text-3xl font-black text-gray-900">{stats.dispensed}</h3>
               <span className="text-xs font-bold text-green-500 mb-1">Fulfilled</span>
             </div>
           </div>
@@ -326,6 +332,10 @@ export default function Pharmacy() {
             </div>
           </div>
         </div>
+      )}
+
+      {orderError && activeView === 'rx' && (
+        <div role="alert" className="p-4 rounded-xl bg-red-50 text-red-700 text-sm font-bold">{orderError}</div>
       )}
 
       {/* Pharmacy Filter Bar */}
@@ -385,7 +395,7 @@ export default function Pharmacy() {
               <div className="flex items-center gap-6">
                 <div className={cn(
                   "p-5 rounded-3xl shrink-0",
-                  rx.status === 'active' ? "bg-orange-50 text-orange-600" : "bg-green-50 text-green-600"
+                  ['pending', 'active', 'dispensing'].includes(rx.status) ? "bg-orange-50 text-orange-600" : "bg-green-50 text-green-600"
                 )}>
                   <Pill size={32} />
                 </div>
@@ -413,15 +423,17 @@ export default function Pharmacy() {
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1 mb-1">Status</span>
                   <div className={cn(
                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border shadow-sm",
-                    rx.status === 'active' ? "bg-amber-50 border-amber-100 text-amber-600" : 
+                    ['pending', 'active'].includes(rx.status) ? "bg-amber-50 border-amber-100 text-amber-600" :
+                    rx.status === 'dispensing' ? "bg-indigo-50 border-indigo-100 text-indigo-600" :
                     rx.status === 'dispensed' ? "bg-blue-50 border-blue-100 text-blue-600" : 
                     rx.status === 'discontinued' ? "bg-red-50 border-red-100 text-red-600" :
                     "bg-emerald-50 border-emerald-100 text-emerald-600"
                   )}>
                     <div className={cn(
                       "w-1.5 h-1.5 rounded-full animate-pulse",
-                      rx.status === 'active' ? "bg-amber-500" : 
-                      rx.status === 'dispensed' ? "bg-blue-500" : 
+                      ['pending', 'active'].includes(rx.status) ? "bg-amber-500" :
+                      rx.status === 'dispensing' ? "bg-indigo-500" :
+                      rx.status === 'dispensed' ? "bg-blue-500" :
                       rx.status === 'discontinued' ? "bg-red-500" :
                       "bg-emerald-500"
                     )} />
@@ -430,29 +442,22 @@ export default function Pharmacy() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {rx.status === 'active' && (profile?.role === 'pharmacy' || profile?.role === 'admin') && (
-                    <>
-                      <button
-                        onClick={() => handleStatusUpdate(rx.id, 'dispensed')}
-                        className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
-                      >
-                        <PackageCheck size={14} /> Dispense
-                      </button>
-                      <button
-                        onClick={() => handleStatusUpdate(rx.id, 'discontinued')}
-                        className="p-2.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
-                        title="Discontinue"
-                      >
-                        <AlertCircle size={18} />
-                      </button>
-                    </>
-                  )}
-                  {rx.status === 'dispensed' && (profile?.role === 'pharmacy' || profile?.role === 'admin') && (
+                  {['pending', 'active'].includes(rx.status) && (isPharmacyStaff || isPharmacyAdmin) && (
                     <button
-                      onClick={() => handleStatusUpdate(rx.id, 'completed')}
-                      className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 transition-all uppercase tracking-widest"
+                      disabled={updatingRxId === rx.id}
+                      onClick={() => handleStatusUpdate(rx.id, 'dispensing')}
+                      className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest disabled:opacity-50"
                     >
-                      <CheckCircle2 size={14} /> Complete
+                      <Clock size={14} /> Start dispensing
+                    </button>
+                  )}
+                  {rx.status === 'dispensing' && (isPharmacyStaff || isPharmacyAdmin) && (
+                    <button
+                      disabled={updatingRxId === rx.id}
+                      onClick={() => handleStatusUpdate(rx.id, 'dispensed')}
+                      className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 transition-all uppercase tracking-widest disabled:opacity-50"
+                    >
+                      <PackageCheck size={14} /> Dispense
                     </button>
                   )}
                 </div>

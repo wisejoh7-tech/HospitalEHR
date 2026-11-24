@@ -42,6 +42,7 @@ const WORKFLOW_STEPS: { id: WorkflowStatus; label: string; icon: any; color: str
 export default function PatientsList() {
   const { profile } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [activeWorkflowTab, setActiveWorkflowTab] = useState<WorkflowStatus | 'all'>('all');
   const [showBiometricModal, setShowBiometricModal] = useState(false);
@@ -57,15 +58,8 @@ export default function PatientsList() {
   const isClinical = profile?.role === 'doctor' || profile?.role === 'nurse';
 
   useEffect(() => {
-    // Set default tab based on role
-    if (isAdmin) {
-      setActiveWorkflowTab('all');
-    } else if (profile?.role === 'doctor') {
-      setActiveWorkflowTab('consultation');
-    } else {
-      setActiveWorkflowTab('all');
-    }
-  }, [profile, isAdmin]);
+    setActiveWorkflowTab('all');
+  }, [profile?.role]);
 
   useEffect(() => {
     return () => {
@@ -150,8 +144,10 @@ export default function PatientsList() {
     try {
       const list = await apiService.getPatients();
       setPatients(list);
+      setLoadError(null);
     } catch (err) {
       console.error(err);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load patients');
     }
   };
 
@@ -227,11 +223,9 @@ export default function PatientsList() {
                          p.id.toLowerCase().includes(searchLower) ||
                          (p.allergies && p.allergies.some(a => a.toLowerCase().includes(searchLower))) ||
                          (p.status && p.status.toLowerCase().includes(searchLower));
-    let matchesWorkflow = activeWorkflowTab === 'all' || p.workflowStatus === activeWorkflowTab;
-    if (profile?.role === 'doctor' && !isAdmin) {
-      matchesWorkflow = p.workflowStatus === 'consultation';
-    }
-    return matchesSearch && matchesWorkflow;
+    const matchesWorkflow = activeWorkflowTab === 'all' || p.workflowStatus === activeWorkflowTab;
+    const isVisible = profile?.role !== 'doctor' || p.status !== 'discharged';
+    return matchesSearch && matchesWorkflow && isVisible;
   });
 
   const getNextStatus = (current: WorkflowStatus): WorkflowStatus | null => {
@@ -382,6 +376,7 @@ export default function PatientsList() {
           </p>
         </div>
 
+        {loadError && <p role="alert" className="px-6 py-4 text-sm font-bold text-red-600">{loadError} <button onClick={fetchPatients} className="underline">Retry</button></p>}
         <div className="flex-1 overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -517,8 +512,8 @@ export default function PatientsList() {
               <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-200 mb-4">
                 <Users size={32} />
               </div>
-              <h3 className="font-bold text-gray-900">Queue is empty</h3>
-              <p className="text-gray-400 max-w-xs text-xs mt-2 font-medium">No patients currently waiting in this department queue.</p>
+              <h3 className="font-bold text-gray-900">No patients found</h3>
+              <p className="text-gray-400 max-w-xs text-xs mt-2 font-medium">No patients match the current search or filter.</p>
             </div>
           )}
         </div>

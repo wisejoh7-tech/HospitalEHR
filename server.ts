@@ -7,8 +7,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import multer from 'multer';
 import fs from 'fs';
-import { execSync } from 'child_process';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { canTransitionInvestigation, canTransitionPrescription, canUpdateInvestigation, isDischarged, validateAdministration, validatePrescription } from './src/lib/clinicalWorkflow';
 
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://myproject_db_ya6y_user:qTn2ZAtnPjDXMashqNCwCsaI5NiPMlMz@dpg-dbft40ks728c73c16cig-a.oregon-postgres.render.com/myproject_db_ya6y';
@@ -271,29 +271,18 @@ async function startServer() {
     }
   };
 
-  // Automatically synchronize Prisma database schema if tables are missing
-  const ensureDatabaseSchema = async () => {
-    try {
-      const isSqlite = isSQLiteDatabase();
-      const schemaPath = isSqlite ? 'prisma/schema.sqlite.prisma' : 'prisma/schema.prisma';
-      console.log(`⏳ Synchronizing database schema using ${schemaPath}...`);
-      execSync(`npx prisma db push --schema=${schemaPath} --skip-generate`, {
-        stdio: 'inherit',
-        env: process.env,
-      });
-      console.log('✅ Database schema in sync.');
-    } catch (dbSyncErr) {
-      console.error('⚠️ Database schema push warning:', dbSyncErr);
-    }
-  };
-
+  // Never apply schema changes automatically to a possibly populated database.
+  // Probe the user and medication administration models for missing tables or columns.
   try {
-    await prisma.user.count();
+    await prisma.user.findFirst();
+    await prisma.medicationAdministration.findFirst();
   } catch (err: any) {
-    if (err?.message?.includes('does not exist') || err?.code === 'P2021') {
-      console.log('⚠️ Database tables missing. Running automated schema push...');
-      await ensureDatabaseSchema();
+    if (err?.code === 'P2021' || err?.code === 'P2022') {
+      const schemaPath = /^(file|sqlite):/i.test(process.env.DATABASE_URL || '')
+        ? 'prisma/schema.sqlite.prisma' : 'prisma/schema.prisma';
+      throw new Error(`Database schema is incomplete (${err.code}). Back up the database, generate and review a non-destructive migration with npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel ${schemaPath} --script, then apply the reviewed SQL with prisma db execute. For a new empty database only, initialize with npx prisma db push --schema=${schemaPath}.`);
     }
+    throw err;
   }
 
   await Promise.all([ensureAdmin(), ensureWards(), ensurePricing()]);
@@ -673,6 +662,27 @@ async function startServer() {
       }
     }
 
+    if (Array.isArray(data.medicationAdministrations)) {
+      for (const administration of data.medicationAdministrations) {
+        if (!administration.id || !administration.prescriptionId) continue;
+        const fields = {
+          prescriptionId: administration.prescriptionId,
+          dose: administration.dose,
+          outcome: administration.outcome,
+          notes: administration.notes ?? null,
+          administeredAt: new Date(administration.administeredAt),
+          staffId: administration.staffId,
+          staffName: administration.staffName,
+        };
+        await prisma.medicationAdministration.upsert({
+          where: { id: administration.id },
+          update: fields,
+          create: { id: administration.id, ...fields },
+        });
+        count++;
+      }
+    }
+
     if (Array.isArray(data.vitals)) {
       for (const v of data.vitals) {
         if (!v.id) continue;
@@ -781,6 +791,7 @@ async function startServer() {
         investigations,
         notes,
         prescriptions,
+        medicationAdministrations,
         inventory,
         pricing,
         logs
@@ -799,6 +810,7 @@ async function startServer() {
         prisma.investigation.findMany(),
         prisma.clinicalNote.findMany(),
         prisma.prescription.findMany(),
+        prisma.medicationAdministration.findMany(),
         prisma.inventory.findMany(),
         prisma.servicePricing.findMany(),
         prisma.auditLog.findMany({ take: 200, orderBy: { timestamp: 'desc' } })
@@ -822,6 +834,7 @@ async function startServer() {
           investigations,
           notes,
           prescriptions,
+          medicationAdministrations,
           inventory,
           pricing,
           logs
@@ -884,6 +897,7 @@ async function startServer() {
         localBills,
         localBillItems,
         localPrescriptions,
+        localMedicationAdministrations,
         localInvestigations,
         localNotes,
         localVitals,
@@ -897,6 +911,7 @@ async function startServer() {
         prisma.bill.findMany(),
         prisma.billItem.findMany(),
         prisma.prescription.findMany(),
+        prisma.medicationAdministration.findMany(),
         prisma.investigation.findMany(),
         prisma.clinicalNote.findMany(),
         prisma.vitalSign.findMany(),
@@ -913,6 +928,7 @@ async function startServer() {
           bills: localBills,
           billItems: localBillItems,
           prescriptions: localPrescriptions,
+          medicationAdministrations: localMedicationAdministrations,
           investigations: localInvestigations,
           notes: localNotes,
           vitals: localVitals,
@@ -1507,6 +1523,7 @@ async function startServer() {
         where: { id: req.params.id },
         data: { 
           status: 'discharged',
+          workflowStatus: 'discharged',
           wardId: null,
           bedId: null,
           dischargeReason: reason
@@ -1583,23 +1600,42 @@ async function startServer() {
     }
   });
 
+  // Lock the patient row through order creation so a concurrent discharge cannot
+  // slip between the status check and insertion of a new order.
+  async function createActivePatientOrder<T>(patientId: string, create: (tx: Prisma.TransactionClient) => Promise<T>): Promise<{ order: T } | { error: 'not_found' | 'discharged' | 'changed' }> {
+    return prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.findUnique({ where: { id: patientId }, select: { status: true } });
+      if (!patient) return { error: 'not_found' as const };
+      if (isDischarged(patient)) return { error: 'discharged' as const };
+      const locked = await tx.patient.updateMany({
+        where: { id: patientId, status: patient.status },
+        data: { status: patient.status }
+      });
+      if (!locked.count) return { error: 'changed' as const };
+      return { order: await create(tx) };
+    });
+  }
+
   app.post('/api/patients/:id/prescriptions', requireRoles('admin', 'doctor'), async (req, res) => {
     try {
+      const validationError = validatePrescription(req.body);
+      if (validationError) return res.status(400).json({ error: validationError });
       const { medication, dosage, frequency, duration, authorId, authorName } = req.body;
-      const prescription = await prisma.prescription.create({
+      const created = await createActivePatientOrder(req.params.id, (tx) => tx.prescription.create({
         data: {
           patientId: req.params.id,
-          medication,
-          dosage,
-          frequency,
-          duration,
-          authorId,
+          medication: medication.trim(),
+          dosage: dosage.trim(),
+          frequency: frequency.trim(),
+          duration: duration.trim(),
+          authorId: authorId.trim(),
           authorName: authorName || 'Unknown Doctor',
-          status: 'active'
+          status: 'pending'
         }
-      });
+      }));
+      if ('error' in created) return res.status(created.error === 'not_found' ? 404 : 409).json({ error: created.error === 'not_found' ? 'Patient not found' : 'Patient is discharged or status changed; refresh and try again' });
       await logAction(authorId, authorName || 'Doctor', `Prescribed ${medication}`, req.params.id, 'Prescription');
-      res.status(201).json(prescription);
+      res.status(201).json(created.order);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create prescription' });
     }
@@ -1608,25 +1644,69 @@ async function startServer() {
   app.patch('/api/prescriptions/:id', requireRoles('admin', 'doctor', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const { status } = req.body;
-      const rx = await prisma.prescription.update({
-        where: { id: req.params.id },
+      if (typeof status !== 'string' || !status.trim()) return res.status(400).json({ error: 'A prescription status is required' });
+      const current = await prisma.prescription.findUnique({ where: { id: req.params.id } });
+      if (!current) return res.status(404).json({ error: 'Prescription not found' });
+      if (status === 'discontinued' && !['admin', 'doctor'].includes(req.headers['x-user-role'] as string)) {
+        return res.status(403).json({ error: 'Only a doctor or admin can discontinue a prescription' });
+      }
+      if (!canTransitionPrescription(current.status, status)) {
+        return res.status(409).json({ error: `Invalid prescription transition from ${current.status} to ${status}` });
+      }
+      const changed = await prisma.prescription.updateMany({
+        where: { id: current.id, status: current.status },
         data: { status }
       });
-      await logAction('system', 'Pharmacy', `Updated prescription status: ${status}`, rx.patientId, 'Prescription');
+      if (!changed.count) return res.status(409).json({ error: 'Prescription status changed; refresh and try again' });
+      const rx = await prisma.prescription.findUnique({ where: { id: current.id } });
+      await logAction((req.headers['x-user-id'] as string) || 'unknown', (req.headers['x-user-name'] as string) || 'Unknown', `Prescription status: ${current.status} -> ${status}`, current.id, 'Prescription');
       res.json(rx);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update prescription' });
     }
   });
 
-  app.get('/api/prescriptions', async (req, res) => {
+  app.post('/api/prescriptions/:id/administrations', requireRoles('admin', 'nurse'), async (req, res) => {
+    try {
+      const error = validateAdministration(req.body);
+      if (error) return res.status(400).json({ error });
+      const staffId = (req.headers['x-user-id'] as string) || req.body.staffId;
+      const staffName = (req.headers['x-user-name'] as string) || req.body.staffName;
+      if (typeof staffId !== 'string' || !staffId.trim() || typeof staffName !== 'string' || !staffName.trim()) {
+        return res.status(400).json({ error: 'Staff ID and name are required' });
+      }
+      const rx = await prisma.prescription.findUnique({ where: { id: req.params.id }, include: { patient: true } });
+      if (!rx) return res.status(404).json({ error: 'Prescription not found' });
+      if (isDischarged(rx.patient)) {
+        return res.status(409).json({ error: 'Cannot record administration for a discharged patient' });
+      }
+      if (rx.status === 'discontinued') return res.status(409).json({ error: 'Cannot record administration for a discontinued prescription' });
+      const administration = await prisma.medicationAdministration.create({
+        data: {
+          prescriptionId: rx.id,
+          dose: req.body.dose.trim(),
+          outcome: req.body.outcome,
+          notes: req.body.notes?.trim() || null,
+          administeredAt: req.body.administeredAt ? new Date(req.body.administeredAt) : new Date(),
+          staffId: staffId.trim(),
+          staffName: staffName.trim(),
+        }
+      });
+      await logAction(staffId, staffName, `Medication ${administration.outcome} for prescription ${rx.id}`, administration.id, 'MedicationAdministration');
+      res.status(201).json(administration);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to record medication administration' });
+    }
+  });
+
+  app.get('/api/prescriptions', requireRoles('admin', 'doctor', 'nurse', 'pharmacy', 'pharmacy_admin'), async (req, res) => {
     try {
       const { status } = req.query;
       const prescriptions = await prisma.prescription.findMany({
         where: {
           ...(status && { status: status as string })
         },
-        include: { patient: true },
+        include: { patient: true, administrations: { orderBy: { administeredAt: 'desc' } } },
         orderBy: { createdAt: 'desc' }
       });
       res.json(prescriptions);
@@ -1723,14 +1803,33 @@ async function startServer() {
   app.patch('/api/investigations/:id', requireRoles('admin', 'doctor', 'lab', 'radiology', 'scientist', 'radiographer'), async (req, res) => {
     try {
       const { status, result, fileUrl } = req.body;
-      const inv = await prisma.investigation.update({
-        where: { id: req.params.id },
-        data: { 
-          ...(status && { status }),
-          ...(result && { result }),
-          ...(fileUrl && { fileUrl })
+      if ((status !== undefined && (typeof status !== 'string' || !status.trim())) ||
+          (result !== undefined && (typeof result !== 'string' || !result.trim())) ||
+          (fileUrl !== undefined && (typeof fileUrl !== 'string' || !fileUrl.trim())) ||
+          (status === undefined && result === undefined && fileUrl === undefined)) {
+        return res.status(400).json({ error: 'Provide a valid status, result, or file URL' });
+      }
+      const current = await prisma.investigation.findUnique({ where: { id: req.params.id } });
+      if (!current) return res.status(404).json({ error: 'Investigation not found' });
+      if (!canUpdateInvestigation(req.headers['x-user-role'] as string, current.type, current.status, { status, result, fileUrl })) {
+        return res.status(403).json({ error: 'Role is not permitted to perform this investigation action' });
+      }
+      if (status !== undefined && !canTransitionInvestigation(current.status, status)) {
+        return res.status(409).json({ error: `Invalid investigation transition from ${current.status} to ${status}` });
+      }
+      if (status === 'completed' && !(result?.trim() || fileUrl?.trim() || current.result?.trim() || current.fileUrl?.trim())) {
+        return res.status(400).json({ error: 'A result or attachment is required to complete an investigation' });
+      }
+      const changed = await prisma.investigation.updateMany({
+        where: { id: current.id, status: current.status },
+        data: {
+          ...(status !== undefined && { status }),
+          ...(result !== undefined && { result: result.trim() }),
+          ...(fileUrl !== undefined && { fileUrl: fileUrl.trim() })
         }
       });
+      if (!changed.count) return res.status(409).json({ error: 'Investigation status changed; refresh and try again' });
+      const inv = await prisma.investigation.findUniqueOrThrow({ where: { id: current.id } });
       await logAction('system', 'Diagnostic Unit', `Updated investigation ${inv.testName} to ${status}`, inv.patientId, 'Investigation');
       res.json(inv);
     } catch (error) {
@@ -1759,7 +1858,7 @@ async function startServer() {
   app.post('/api/patients/:id/physiotherapy', requireRoles('admin', 'doctor', 'nurse'), async (req, res) => {
     try {
       const { referredBy, clinicalIndication, bodyRegion, treatmentType, sessionsRequested, priority, notes } = req.body;
-      const referral = await prisma.physiotherapyReferral.create({
+      const created = await createActivePatientOrder(req.params.id, (tx) => tx.physiotherapyReferral.create({
         data: {
           patientId: req.params.id,
           referredBy: referredBy || 'Doctor',
@@ -1773,10 +1872,10 @@ async function startServer() {
           notes
         },
         include: { patient: true }
-      });
-
+      }));
+      if ('error' in created) return res.status(created.error === 'not_found' ? 404 : 409).json({ error: created.error === 'not_found' ? 'Patient not found' : 'Patient is discharged or status changed; refresh and try again' });
       await logAction('system', referredBy || 'Doctor', `Referred patient to Physiotherapy for ${bodyRegion}`, req.params.id, 'Patient');
-      res.status(201).json(referral);
+      res.status(201).json(created.order);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create physiotherapy referral' });
     }
@@ -1821,7 +1920,10 @@ async function startServer() {
   app.post('/api/patients/:id/investigations', requireRoles('admin', 'doctor', 'nurse'), async (req, res) => {
     try {
       const { type, category, testName, priority, requestedBy } = req.body;
-      const inv = await prisma.investigation.create({
+      if (!['laboratory', 'radiology'].includes(type) || [category, testName, priority, requestedBy].some(value => typeof value !== 'string' || !value.trim())) {
+        return res.status(400).json({ error: 'A valid type, category, test name, priority, and requester are required' });
+      }
+      const created = await createActivePatientOrder(req.params.id, (tx) => tx.investigation.create({
         data: {
           patientId: req.params.id,
           type,
@@ -1831,7 +1933,9 @@ async function startServer() {
           requestedBy,
           status: 'pending'
         }
-      });
+      }));
+      if ('error' in created) return res.status(created.error === 'not_found' ? 404 : 409).json({ error: created.error === 'not_found' ? 'Patient not found' : 'Patient is discharged or status changed; refresh and try again' });
+      const inv = created.order;
 
       // Auto-bill investigation
       const bill = await prisma.bill.findFirst({
@@ -2033,7 +2137,7 @@ async function startServer() {
         where: { id: req.params.id },
         include: { 
           notes: { orderBy: { createdAt: 'desc' } },
-          prescriptions: { orderBy: { createdAt: 'desc' } },
+          prescriptions: { orderBy: { createdAt: 'desc' }, include: { administrations: { orderBy: { administeredAt: 'desc' } } } },
           investigations: { orderBy: { createdAt: 'desc' } },
           vitals: { orderBy: { createdAt: 'desc' }, take: 10 },
           bills: { include: { items: true }, orderBy: { createdAt: 'desc' } },
@@ -2475,4 +2579,8 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Server startup failed:', err);
+  process.exitCode = 1;
+  void prisma.$disconnect();
+});

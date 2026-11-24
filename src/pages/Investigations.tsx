@@ -29,41 +29,36 @@ export default function Investigations() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loadingUpdate, setLoadingUpdate] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [updatingInvId, setUpdatingInvId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.role === 'lab' && filterType !== 'laboratory') setFilterType('laboratory');
     else if (profile?.role === 'radiology' && filterType !== 'radiology') setFilterType('radiology');
   }, [profile, filterType]);
 
-  const fetchInv = async () => {
-    try {
-      const data = await apiService.getInvestigations(filterType !== 'all' ? { type: filterType } : {});
-      setInvestigations(data);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    fetchInv();
-  }, [filterType]);
+    let current = true;
+    const type = profile?.role === 'lab' ? 'laboratory' : profile?.role === 'radiology' ? 'radiology' : filterType;
+    setLoading(true);
+    setError('');
+    apiService.getInvestigations(type !== 'all' ? { type } : {})
+      .then(data => { if (current) setInvestigations(data); })
+      .catch(err => { if (current) setError(err instanceof Error ? err.message : 'Failed to fetch investigations'); })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [filterType, profile?.role]);
 
-  const handleSendToDoctor = async (patientId: string) => {
+  const handleUpdateStatus = async (invId: string, status: string) => {
+    setError('');
+    setUpdatingInvId(invId);
     try {
-      await apiService.updatePatientWorkflowStatus(patientId, 'consultation', profile?.role);
-      fetchInv();
-    } catch (err: any) {
-      alert(err?.message || "Failed to send patient to doctor");
-    }
-  };
-
-  const handleUpdateStatus = async (invId: string, status: string, result?: string) => {
-    try {
-      await apiService.updateInvestigation(invId, { status, result });
-      fetchInv();
+      const updated = await apiService.updateInvestigation(invId, { status });
+      setInvestigations(prev => prev.map(inv => inv.id === invId ? { ...inv, ...updated } : inv));
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to update investigation');
+    } finally {
+      setUpdatingInvId(null);
     }
   };
 
@@ -71,6 +66,7 @@ export default function Investigations() {
     e.preventDefault();
     if (!selectedInv || !resultText.trim()) return;
     setLoadingUpdate(true);
+    setError('');
     try {
       let fileUrl = '';
       if (selectedFile) {
@@ -78,17 +74,17 @@ export default function Investigations() {
         fileUrl = uploadRes.fileUrl;
       }
 
-      await apiService.updateInvestigation(selectedInv.id, {
+      const updated = await apiService.updateInvestigation(selectedInv.id, {
         status: 'completed',
         result: resultText,
         fileUrl: fileUrl || undefined
       });
+      setInvestigations(prev => prev.map(inv => inv.id === selectedInv.id ? { ...inv, ...updated } : inv));
       setSelectedInv(null);
       setResultText('');
       setSelectedFile(null);
-      fetchInv();
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to save investigation result');
     } finally {
       setLoadingUpdate(false);
     }
@@ -202,13 +198,15 @@ export default function Investigations() {
         </div>
       )}
 
+      {error && !selectedInv && <div role="alert" className="p-4 rounded-xl bg-red-50 text-red-700 text-sm font-bold">{error}</div>}
+
       <div className={cn("grid grid-cols-1 gap-8", isAdmin ? "xl:grid-cols-3" : "")}>
         <div className={cn("space-y-6", isAdmin ? "xl:col-span-2" : "w-full")}>
            {loading ? (
              <div className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest">Scanning Network...</div>
            ) : (
              <div className="grid gap-4">
-                {investigations.filter(inv => isAdmin ? true : (inv.patient?.workflowStatus === 'laboratory' || inv.patient?.workflowStatus === 'radiology')).map((inv, i) => (
+                {investigations.map((inv, i) => (
                    <motion.div
                     key={inv.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -268,6 +266,7 @@ export default function Investigations() {
                        <div className="flex items-center gap-2">
                           {inv.status === 'pending' && (profile?.role === 'lab' || profile?.role === 'radiology' || profile?.role === 'admin') && (
                             <button 
+                              disabled={updatingInvId === inv.id}
                               onClick={() => handleUpdateStatus(inv.id, 'sample_collected')}
                               className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-blue-700 transition-all"
                             >
@@ -276,6 +275,7 @@ export default function Investigations() {
                           )}
                           {inv.status === 'sample_collected' && (profile?.role === 'lab' || profile?.role === 'radiology' || profile?.role === 'admin') && (
                             <button 
+                              disabled={updatingInvId === inv.id}
                               onClick={() => handleUpdateStatus(inv.id, 'processing')}
                               className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all"
                             >
@@ -284,7 +284,8 @@ export default function Investigations() {
                           )}
                           {(inv.status === 'processing' || inv.status === 'sample_collected') && (profile?.role === 'lab' || profile?.role === 'radiology' || profile?.role === 'admin') && (
                             <button 
-                              onClick={() => { setSelectedInv(inv); setResultText(''); }}
+                              disabled={updatingInvId === inv.id}
+                              onClick={() => { setError(''); setSelectedInv(inv); setResultText(''); setSelectedFile(null); }}
                               className="px-4 py-2 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-green-700 transition-all"
                             >
                               Complete
@@ -292,18 +293,11 @@ export default function Investigations() {
                           )}
                           {inv.status === 'completed' && (profile?.role === 'doctor' || profile?.role === 'admin') && (
                             <button 
+                              disabled={updatingInvId === inv.id}
                               onClick={() => handleUpdateStatus(inv.id, 'reviewed')}
                               className="px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-gray-800 transition-all"
                             >
                               Review & Close
-                            </button>
-                          )}
-                          {inv.patientId && (
-                            <button
-                              onClick={() => handleSendToDoctor(inv.patientId)}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-blue-700 transition-all"
-                            >
-                              Send to Doctor
                             </button>
                           )}
                        </div>
@@ -375,6 +369,7 @@ export default function Investigations() {
                 </div>
 
                 <form onSubmit={handleUpdateResult} className="space-y-6">
+                   {error && <div role="alert" className="p-4 rounded-xl bg-red-50 text-red-700 text-sm font-bold">{error}</div>}
                    <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Findings / Result Summary</label>
                       <textarea 
