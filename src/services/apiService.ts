@@ -1,4 +1,4 @@
-import { Patient, Ward, ClinicalNote, Prescription, Investigation, VitalSign, BedStatus, WorkflowStatus, Appointment } from '../types';
+import { Patient, Ward, ClinicalNote, Prescription, Investigation, VitalSign, BedStatus, WorkflowStatus, Appointment, PrescriptionWithPatient, MedicationAdministration, CreateMedicationAdministration } from '../types';
 
 const getApiBase = (): string => {
   const rawUrl = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').trim();
@@ -382,12 +382,22 @@ export const apiService = {
     return handleResponse<any>(res, 'Failed to rename category');
   },
 
-  async getPrescriptions(query?: { status?: string }): Promise<any[]> {
-    const params = new URLSearchParams(query as any).toString();
-    const res = await fetch(`${API_BASE}/prescriptions?${params}`, {
+  async getPrescriptions(query?: { status?: string }): Promise<PrescriptionWithPatient[]> {
+    const params = new URLSearchParams();
+    if (query?.status) params.set('status', query.status);
+    const res = await fetch(`${API_BASE}/prescriptions${params.size ? `?${params}` : ''}`, {
       headers: getAuthHeaders()
     });
-    return handleResponse<any[]>(res, 'Failed to fetch prescriptions');
+    return handleResponse<PrescriptionWithPatient[]>(res, 'Failed to fetch prescriptions');
+  },
+
+  async recordAdministration(prescriptionId: string, data: CreateMedicationAdministration): Promise<MedicationAdministration> {
+    const res = await fetch(`${API_BASE}/prescriptions/${encodeURIComponent(prescriptionId)}/administrations`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<MedicationAdministration>(res, 'Failed to record administration');
   },
 
   async updatePatient(id: string, data: Partial<Patient>): Promise<Patient> {

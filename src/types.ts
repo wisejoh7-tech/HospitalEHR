@@ -2,6 +2,7 @@ export type UserRole = 'doctor' | 'nurse' | 'admin' | 'record' | 'pharmacy' | 'p
 
 export interface UserProfile {
   uid?: string;
+  id?: string;
   name: string;
   email?: string;
   phone?: string;
@@ -186,6 +187,34 @@ export interface Prescription {
   dosage: string;
   frequency: string;
   duration: string;
-  status: 'active' | 'discontinued' | 'completed' | 'dispensed';
+  status: 'active' | 'pending' | 'dispensing' | 'discontinued' | 'completed' | 'dispensed';
   createdAt: string;
+  administrations?: MedicationAdministration[];
 }
+
+export type AdministrationOutcome = 'administered' | 'held' | 'refused';
+
+export interface MedicationAdministration {
+  id: string;
+  prescriptionId: string;
+  dose: string;
+  outcome: AdministrationOutcome;
+  notes?: string | null;
+  administeredAt: string;
+  staffId: string;
+  staffName: string;
+}
+
+export interface CreateMedicationAdministration {
+  dose: string;
+  outcome: AdministrationOutcome;
+  notes?: string;
+  administeredAt?: string;
+  staffId: string;
+  staffName: string;
+}
+
+export type PrescriptionWithPatient = Prescription & {
+  patient: Patient;
+  administrations: MedicationAdministration[];
+};

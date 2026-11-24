@@ -35,6 +35,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDate, formatTime } from '../lib/utils';
 import { GoogleGenAI } from "@google/genai";
 
+type PrescriptionWithAdministrations = Prescription & {
+  administrations?: { id: string; dose: string; outcome: string; notes?: string | null; administeredAt: string; staffName: string }[];
+};
+
 export default function PatientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -42,7 +46,7 @@ export default function PatientDetails() {
   const { profile } = useAuth();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [notes, setNotes] = useState<ClinicalNote[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [prescriptions, setPrescriptions] = useState<PrescriptionWithAdministrations[]>([]);
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [vitals, setVitals] = useState<VitalSign[]>([]);
   const [bills, setBills] = useState<any[]>([]);
@@ -63,6 +67,7 @@ export default function PatientDetails() {
   const [noteContent, setNoteContent] = useState('');
   const [noteType, setNoteType] = useState<NoteType>('physician');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [nextAppointment, setNextAppointment] = useState('');
   const [isUpdatingAppointment, setIsUpdatingAppointment] = useState(false);
@@ -175,8 +180,9 @@ export default function PatientDetails() {
       try {
         const data = await apiService.getPatientById(id);
         setPatient(data);
-        setNotes(data.notes);
-        setPrescriptions(data.prescriptions);
+        setLoadError(null);
+        setNotes(data.notes || []);
+        setPrescriptions(data.prescriptions || []);
         setInvestigations(data.investigations || []);
         setVitals(data.vitals || []);
         setBills(data.bills || []);
@@ -200,7 +206,7 @@ export default function PatientDetails() {
         setLoading(false);
       } catch (err) {
         console.error(err);
-        setPatient(null);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load patient data');
         setLoading(false);
       }
     };
@@ -249,27 +255,19 @@ export default function PatientDetails() {
       setInvTestName('');
       setShowInvModal(false);
 
-      // Auto-move to lab/radiology after ordering
-      if (patient?.workflowStatus === 'consultation' || isDoctor || isAdmin) {
-        try {
-          const nextStatus = invType === 'radiology' ? 'radiology' : 'laboratory';
-          const updated = await apiService.updatePatientWorkflowStatus(id, nextStatus, profile?.role);
-          setPatient(updated);
-        } catch (e) {
-          console.error(e);
-        }
-      }
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to request investigation');
     }
   };
 
   const handleUpdateInvestigation = async (invId: string, status: string, result?: string) => {
     try {
       const updated = await apiService.updateInvestigation(invId, { status, result });
-      setInvestigations(prev => prev.map(i => i.id === invId ? updated : i));
+      setInvestigations(prev => prev.map(i => i.id === invId ? { ...i, ...updated } : i));
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to update investigation');
     }
   };
 
@@ -312,33 +310,26 @@ export default function PatientDetails() {
     try {
       const newRx = await apiService.addPrescription(id, {
         ...rxForm,
-        authorId: profile.uid,
+        authorId: profile.uid || profile.id,
         authorName: profile.name
       });
       setPrescriptions(prev => [newRx, ...prev]);
       setShowRxModal(false);
       setRxForm({ medication: '', dosage: '', frequency: '', duration: '' });
 
-      // Auto-move to pharmacy stage
-      if (patient?.workflowStatus === 'consultation' || isDoctor || isAdmin) {
-        try {
-          const updated = await apiService.updatePatientWorkflowStatus(id, 'pharmacy', profile?.role);
-          setPatient(updated);
-        } catch (e) {
-          console.error(e);
-        }
-      }
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to create prescription');
     }
   };
 
   const handleUpdateRxStatus = async (rxId: string, status: string) => {
     try {
       const updated = await apiService.updatePrescriptionStatus(rxId, status);
-      setPrescriptions(prev => prev.map(r => r.id === rxId ? updated : r));
+      setPrescriptions(prev => prev.map(r => r.id === rxId ? { ...r, ...updated } : r));
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to update prescription');
     }
   };
 
@@ -458,10 +449,11 @@ export default function PatientDetails() {
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500 font-bold">Retrieving patient data...</div>;
-  if (!patient) return <div className="p-8 text-center text-red-600 font-bold">Patient record not found.</div>;
+  if (!patient) return <div role="alert" className="p-8 text-center text-red-600 font-bold">{loadError || 'Patient record not found.'}</div>;
 
   return (
     <div className="space-y-8 h-full flex flex-col">
+      {loadError && <p role="alert" className="text-sm font-bold text-red-600">Could not refresh all patient data: {loadError}</p>}
       <header className="flex items-center gap-4">
         <button 
           onClick={() => navigate('/patients')}
@@ -781,7 +773,7 @@ export default function PatientDetails() {
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Send size={16} className="text-blue-600" />
-                <span className="text-xs font-black text-gray-900 uppercase tracking-wider">Send Patient Info To:</span>
+                <span className="text-xs font-black text-gray-900 uppercase tracking-wider">Clinical actions:</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <button
@@ -801,53 +793,35 @@ export default function PatientDetails() {
                 </button>
 
                 <button
-                  onClick={async () => {
-                    try {
-                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'pharmacy', profile?.role);
-                      setPatient(updated);
-                      setActiveTab('prescriptions');
-                      setShowRxModal(true);
-                    } catch (e: any) {
-                      alert(e?.message || 'Failed to send patient info to Pharmacy');
-                    }
-                  }}
+                  onClick={() => {
+                     setActiveTab('prescriptions');
+                     setShowRxModal(true);
+                   }}
                   className="px-3.5 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
-                  <Pill size={14} /> Send to Pharmacy
+                  <Pill size={14} /> New Prescription
                 </button>
 
                 <button
-                  onClick={async () => {
-                    try {
-                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'laboratory', profile?.role);
-                      setPatient(updated);
-                      setActiveTab('labs');
-                      setInvType('laboratory');
-                      setShowInvModal(true);
-                    } catch (e: any) {
-                      alert(e?.message || 'Failed to send patient info to Laboratory');
-                    }
-                  }}
+                  onClick={() => {
+                     setActiveTab('labs');
+                     setInvType('laboratory');
+                     setShowInvModal(true);
+                   }}
                   className="px-3.5 py-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
-                  <Activity size={14} /> Send to Lab
+                  <Activity size={14} /> Request Lab
                 </button>
 
                 <button
-                  onClick={async () => {
-                    try {
-                      const updated = await apiService.updatePatientWorkflowStatus(id!, 'radiology', profile?.role);
-                      setPatient(updated);
-                      setActiveTab('radiology');
-                      setInvType('radiology');
-                      setShowInvModal(true);
-                    } catch (e: any) {
-                      alert(e?.message || 'Failed to send patient info to Radiology');
-                    }
-                  }}
+                  onClick={() => {
+                     setActiveTab('radiology');
+                     setInvType('radiology');
+                     setShowInvModal(true);
+                   }}
                   className="px-3.5 py-2 bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
-                  <FileSearch size={14} /> Send to Radiology
+                  <FileSearch size={14} /> Request Radiology
                 </button>
               </div>
             </div>
@@ -972,8 +946,8 @@ export default function PatientDetails() {
                 {activeTab === 'prescriptions' && (
                   <motion.div layout className="space-y-4">
                     <div className="flex justify-between items-center mb-4">
-                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Active Pharmacotherapy</h3>
-                       {isDoctor && (
+                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Prescriptions</h3>
+                       {(isDoctor || isAdmin) && patient.status !== 'discharged' && (
                          <button 
                            onClick={() => setShowRxModal(true)}
                            className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
@@ -983,7 +957,8 @@ export default function PatientDetails() {
                        )}
                     </div>
                     {prescriptions.map(rx => (
-                      <div key={rx.id} className="p-5 border border-gray-100 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 hover:bg-gray-50 transition-all group">
+                      <div key={rx.id} className="p-5 border border-gray-100 rounded-[2rem] hover:bg-gray-50 transition-all group">
+                       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-4 w-full">
                            <div className={cn(
                              "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
@@ -1005,29 +980,31 @@ export default function PatientDetails() {
                         </div>
                         <div className="flex items-center gap-4 w-full sm:w-auto shrink-0">
                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest pr-1">Prescription Status</span>
-                              <select 
-                                value={rx.status}
-                                onChange={(e) => handleUpdateRxStatus(rx.id, e.target.value)}
-                                className={cn(
-                                  "pl-3 pr-8 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm outline-none cursor-pointer border appearance-none transition-all",
-                                  rx.status === 'active' ? "bg-amber-50 border-amber-100 text-amber-600" : 
-                                  rx.status === 'dispensed' ? "bg-blue-50 border-blue-100 text-blue-600" : 
-                                  rx.status === 'discontinued' ? "bg-red-50 border-red-100 text-red-600" :
-                                  "bg-emerald-50 border-emerald-100 text-emerald-600"
-                                )}
-                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat' }}
-                              >
-                                <option value="active">Active</option>
-                                <option value="dispensed">Dispensed</option>
-                                <option value="completed">Completed</option>
-                                <option value="discontinued">Discontinued</option>
-                              </select>
+                              <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest pr-1">Prescription / dispensing status</span>
+                              <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold capitalize">{rx.status.replace(/_/g, ' ')}</span>
+                              {(isDoctor || isAdmin) && !['completed', 'discontinued'].includes(rx.status) && (
+                                <button type="button" onClick={() => { if (window.confirm('Discontinue this prescription?')) void handleUpdateRxStatus(rx.id, 'discontinued'); }} className="text-xs font-semibold text-red-700 hover:underline">Discontinue</button>
+                              )}
                            </div>
                         </div>
+                       </div>
+                       <div className="mt-4 pt-4 border-t border-gray-100">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Medication administration history</h4>
+                        {rx.administrations?.length ? (
+                          <ul className="space-y-2">
+                            {rx.administrations.map(administration => (
+                              <li key={administration.id} className="text-xs text-gray-700 bg-gray-50 rounded-xl p-3">
+                                <p className="font-bold">{administration.dose} • {administration.outcome.replace(/_/g, ' ')}</p>
+                                <p className="text-gray-500">{formatDate(administration.administeredAt)} at {formatTime(administration.administeredAt)} • {administration.staffName}</p>
+                                {administration.notes && <p className="mt-1 whitespace-pre-wrap">{administration.notes}</p>}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : <p className="text-xs text-gray-400">No administrations recorded.</p>}
+                       </div>
                       </div>
-                    ))}
-                    {prescriptions.length === 0 && <p className="text-center p-12 text-gray-300 font-bold">No active prescriptions.</p>}
+                     ))}
+                     {prescriptions.length === 0 && <p className="text-center p-12 text-gray-300 font-bold">No prescriptions recorded.</p>}
                   </motion.div>
                 )}
 
@@ -1207,19 +1184,16 @@ export default function PatientDetails() {
                                   className="w-full p-4 bg-gray-50 rounded-2xl text-sm font-medium h-48 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
                                   placeholder="Define the long-term clinical goal and steps..."
                                   onBlur={async (e) => {
-                                    if (!e.target.value) return;
-                                    const plan = await apiService.addTreatmentPlan(id!, { content: e.target.value, authorId: profile!.uid, authorName: profile!.name });
-                                    setTreatmentPlans(p => [plan, ...p]);
-                                    e.target.value = '';
-                                    
-                                    // Auto-move to treatment stage
-                                    if (isAdmin && patient?.workflowStatus === 'consultation') {
-                                      try {
-                                        const updated = await apiService.updatePatientWorkflowStatus(id!, 'treatment', profile?.role);
-                                        setPatient(updated);
-                                      } catch (e) {
-                                        console.error(e);
-                                      }
+                                    const input = e.currentTarget;
+                                    const content = input.value;
+                                    if (!content.trim()) return;
+                                    try {
+                                      const plan = await apiService.addTreatmentPlan(id!, { content, authorId: profile!.uid || profile!.id, authorName: profile!.name });
+                                      setTreatmentPlans(p => [plan, ...p]);
+                                      if (input.value === content) input.value = '';
+                                    } catch (err) {
+                                      console.error(err);
+                                      alert(err instanceof Error ? err.message : 'Failed to save treatment plan');
                                     }
                                   }}
                                 />
@@ -1227,7 +1201,7 @@ export default function PatientDetails() {
                               <div className="space-y-3">
                                  {treatmentPlans.map(tp => (
                                    <div key={tp.id} className="p-4 bg-white border border-gray-100 rounded-xl">
-                                      <p className="text-sm text-gray-700">{tp.content}</p>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{tp.content}</p>
                                       <p className="text-[10px] text-gray-400 mt-2 font-bold">{tp.authorName} • {formatDate(tp.createdAt)}</p>
                                    </div>
                                  ))}
@@ -1393,19 +1367,22 @@ export default function PatientDetails() {
                    <motion.div layout className="space-y-6">
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="font-black text-gray-900 uppercase text-xs tracking-widest">{activeTab} Investigation Requests</h3>
-                        <button 
-                          onClick={() => {
-                            setInvType(activeTab === 'labs' ? 'laboratory' : 'radiology');
-                            setShowInvModal(true);
-                          }}
-                          className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
-                        >
-                          <PlusCircle size={14} /> Request {activeTab === 'labs' ? 'Lab' : 'Scan'}
-                        </button>
+                        {(isAdmin || isClinical) && patient.status !== 'discharged' && (
+                          <button
+                            onClick={() => {
+                              setInvType(activeTab === 'labs' ? 'laboratory' : 'radiology');
+                              setShowInvModal(true);
+                            }}
+                            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg"
+                          >
+                            <PlusCircle size={14} /> Request {activeTab === 'labs' ? 'Lab' : 'Scan'}
+                          </button>
+                        )}
                       </div>
                       <div className="grid gap-4">
                         {investigations.filter(i => i.type === (activeTab === 'labs' ? 'laboratory' : 'radiology')).map(inv => (
-                          <div key={inv.id} className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between group">
+                          <div key={inv.id} className="p-4 bg-gray-50 rounded-2xl group">
+                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
                                <div className={cn(
                                  "w-10 h-10 rounded-xl flex items-center justify-center",
@@ -1419,20 +1396,15 @@ export default function PatientDetails() {
                                </div>
                             </div>
                             <div className="flex items-center gap-3">
-                               <select 
-                                 value={inv.status}
-                                 onChange={(e) => handleUpdateInvestigation(inv.id, e.target.value)}
-                                 className={cn(
-                                   "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm outline-none cursor-pointer",
-                                   inv.status === 'pending' ? "bg-yellow-100 text-yellow-700" : 
-                                   inv.status === 'completed' ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
-                                 )}
-                               >
-                                 <option value="pending">Pending</option>
-                                 <option value="completed">Completed</option>
-                                 <option value="reviewed">Reviewed</option>
-                               </select>
+                               <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold capitalize">{inv.status.replace(/_/g, ' ')}</span>
+                               {inv.status === 'completed' && (isDoctor || isAdmin) && <button type="button" onClick={() => void handleUpdateInvestigation(inv.id, 'reviewed')} className="text-xs font-semibold text-blue-700 hover:underline">Mark reviewed</button>}
                             </div>
+                           </div>
+                           <div className="mt-3 text-xs text-gray-700">
+                             <p className="font-black text-gray-400 uppercase tracking-widest">Result</p>
+                             <p className="mt-1 whitespace-pre-wrap">{inv.result || 'No result recorded.'}</p>
+                             {inv.fileUrl && <a href={inv.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-blue-600 font-bold underline">View result attachment</a>}
+                           </div>
                           </div>
                         ))}
                         {investigations.filter(i => i.type === (activeTab === 'labs' ? 'laboratory' : 'radiology')).length === 0 && (

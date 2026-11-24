@@ -17,6 +17,7 @@ const PatientRegistration = lazy(() => import('./pages/PatientRegistration'));
 const PatientAdmission = lazy(() => import('./pages/PatientAdmission'));
 const Investigations = lazy(() => import('./pages/Investigations'));
 const Pharmacy = lazy(() => import('./pages/Pharmacy'));
+const Nursing = lazy(() => import('./pages/Nursing'));
 const Physiotherapy = lazy(() => import('./pages/Physiotherapy'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
 const RevenueSettings = lazy(() => import('./pages/RevenueSettings'));
@@ -89,6 +90,7 @@ export default function App() {
               <Route path="/wards" element={<ProtectedRoute roles={['admin', 'doctor', 'nurse']}><WardsOverview /></ProtectedRoute>} />
               <Route path="/patients" element={<PatientsList />} />
               <Route path="/vitals-record" element={<ProtectedRoute roles={['admin', 'nurse']}><VitalsRecord /></ProtectedRoute>} />
+              <Route path="/nursing" element={<ProtectedRoute roles={['admin', 'nurse', 'doctor']}><Nursing /></ProtectedRoute>} />
               <Route path="/patients/register" element={<ProtectedRoute roles={['admin', 'record']}><PatientRegistration /></ProtectedRoute>} />
               <Route path="/admission" element={<ProtectedRoute roles={['admin', 'nurse', 'doctor']}><PatientAdmission /></ProtectedRoute>} />
               <Route path="/patients/:id" element={<PatientDetails />} />
